@@ -38,6 +38,7 @@ export class WhatsAppController {
     @Res() res: Response,
   ) {
     const configuredToken = this.configService.get<string>('whatsapp.verifyToken');
+    this.logger.log(`[VERIFY_REQUEST] mode: ${mode}, token: ${token}`);
 
     if (mode === 'subscribe' && token === configuredToken) {
       this.logger.log('WhatsApp Webhook successfully verified by Meta.');
@@ -52,7 +53,9 @@ export class WhatsAppController {
    * Incoming Meta message webhook receiver
    */
   @Post()
-  handleIncomingWebhook(@Body() payload: WhatsAppWebhookPayload, @Res() res: Response) {
+  handleIncomingWebhook(@Body() payload: any, @Res() res: Response) {
+    this.logger.log(`📥 [INCOMING_META_WEBHOOK] Entry count: ${payload?.entry?.length || 0}`);
+
     // 1. Return HTTP 200 OK immediately to satisfy Meta's 3-second SLA
     res.status(HttpStatus.OK).send('EVENT_RECEIVED');
 
@@ -64,17 +67,23 @@ export class WhatsAppController {
           const value = change.value;
           const contacts = value.contacts || [];
           const messages = value.messages || [];
+          const statuses = value.statuses || [];
+
+          if (statuses.length > 0) {
+            this.logger.log(`ℹ️ [META_STATUS_UPDATE] Message status: ${statuses[0]?.status} for ${statuses[0]?.recipient_id}`);
+          }
 
           for (const msg of messages) {
             const wamid = msg.id;
 
             // Deduplication check
             if (this.debounceService.isDuplicate(wamid)) {
+              this.logger.log(`⏭️ [DROPPED_DUPLICATE] wamid: ${wamid}`);
               continue;
             }
 
             const from = msg.from;
-            const senderName = contacts.find((c) => c.wa_id === from)?.profile?.name || 'Customer';
+            const senderName = contacts.find((c: any) => c.wa_id === from)?.profile?.name || 'Customer';
 
             let incomingText = '';
             if (msg.type === 'text' && msg.text?.body) {
@@ -83,12 +92,15 @@ export class WhatsAppController {
               incomingText = msg.interactive.button_reply.title;
             }
 
+            this.logger.log(`📩 [MESSAGE_RECEIVED] From: ${from} (${senderName}) | Text: "${incomingText}"`);
+
             if (incomingText.trim()) {
               this.debounceService.bufferMessage(
                 from,
                 senderName,
                 incomingText,
                 async (senderPhone, name, combined) => {
+                  this.logger.log(`🚀 [DISPATCHING_TO_AGENT] Processing for ${senderPhone}: "${combined}"`);
                   await this.agentService.handleCustomerMessage(senderPhone, name, combined);
                 },
               );
@@ -104,8 +116,6 @@ export class WhatsAppController {
 
   /**
    * Simulation Endpoint for local dev & testing without active Meta webhook
-   * POST /webhook/simulate
-   * Body: { from: "447123456789", name: "Rahul", message: "Hi, I need catering for 30 guests" }
    */
   @Post('simulate')
   async simulateCustomerMessage(
@@ -121,8 +131,6 @@ export class WhatsAppController {
     }
 
     this.logger.log(`[SIMULATION_REQUEST] From: ${from} | Name: ${name} | Message: "${message}"`);
-
-    // Process directly through agent
     await this.agentService.handleCustomerMessage(from, name, message);
 
     return res.status(HttpStatus.OK).json({

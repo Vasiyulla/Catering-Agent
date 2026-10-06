@@ -20,7 +20,7 @@ export class WhatsAppService {
     this.isConfigured = Boolean(this.phoneNumberId && this.accessToken);
 
     if (this.isConfigured) {
-      this.logger.log('WhatsApp Cloud API service configured.');
+      this.logger.log(`WhatsApp Cloud API configured with Phone ID: ${this.phoneNumberId}`);
     } else {
       this.logger.warn('WhatsApp credentials not set in environment. Running in mock simulation mode.');
     }
@@ -34,7 +34,9 @@ export class WhatsAppService {
 
     try {
       const url = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
-      await axios.post(
+      this.logger.log(`📤 Sending WhatsApp message to ${to} via ${url}...`);
+
+      const res = await axios.post(
         url,
         {
           messaging_product: 'whatsapp',
@@ -50,11 +52,11 @@ export class WhatsAppService {
           },
         },
       );
-      this.logger.log(`Sent WhatsApp text message to ${to}`);
+      this.logger.log(`✅ Successfully sent WhatsApp text message to ${to} (Message ID: ${res.data?.messages?.[0]?.id})`);
       return true;
     } catch (err: unknown) {
-      const error = err as { response?: { data?: unknown }; message: string };
-      this.logger.error(`Failed to send WhatsApp message: ${JSON.stringify(error.response?.data || error.message)}`);
+      const error = err as { response?: { data?: unknown; status?: number }; message: string };
+      this.logger.error(`❌ FAILED to send WhatsApp message to ${to}: Status ${error.response?.status} - ${JSON.stringify(error.response?.data || error.message)}`);
       return false;
     }
   }
@@ -68,7 +70,9 @@ export class WhatsAppService {
 
     try {
       const url = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
-      await axios.post(
+      this.logger.log(`📤 Sending WhatsApp interactive buttons to ${to}...`);
+
+      const res = await axios.post(
         url,
         {
           messaging_product: 'whatsapp',
@@ -93,12 +97,11 @@ export class WhatsAppService {
           },
         },
       );
-      this.logger.log(`Sent WhatsApp interactive buttons to ${to}`);
+      this.logger.log(`✅ Successfully sent WhatsApp interactive buttons to ${to} (Message ID: ${res.data?.messages?.[0]?.id})`);
       return true;
     } catch (err: unknown) {
-      const error = err as { response?: { data?: unknown }; message: string };
-      this.logger.error(`Failed to send WhatsApp interactive buttons: ${JSON.stringify(error.response?.data || error.message)}`);
-      // Fallback to text message if interactive fails
+      const error = err as { response?: { data?: unknown; status?: number }; message: string };
+      this.logger.warn(`Interactive button failed (${JSON.stringify(error.response?.data || error.message)}). Falling back to text message...`);
       return this.sendTextMessage(to, `${bodyText}\n\nOptions:\n${buttons.map((b) => `• ${b.title}`).join('\n')}`);
     }
   }
