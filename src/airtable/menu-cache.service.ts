@@ -6,8 +6,10 @@ export interface MenuItem {
   category: 'Starters' | 'Mains' | 'Rice & Biryani' | 'Breads' | 'Desserts' | 'Beverages';
   dietary: ('Vegetarian' | 'Non-Veg' | 'Vegan' | 'Halal' | 'Gluten-Free')[];
   description: string;
-  pricingType: 'Per Person' | 'Per Tray' | 'Fixed';
-  unitPrice: number;
+  perPersonPrice: number; // When ordered in a buffet per head
+  trayPrice: number;      // Large catering tray (serves ~10 people)
+  trayServes: number;     // Number of guests a tray serves (e.g. 10)
+  unitPrice: number;      // Default reference price
   minQuantity: number;
   available: boolean;
 }
@@ -49,9 +51,11 @@ export class MenuCacheService {
         category: 'Starters',
         dietary: ['Non-Veg', 'Halal'],
         description: 'Crisp carom-spiced batter fried white fish with mint chutney',
-        pricingType: 'Per Person',
+        perPersonPrice: 4.5,
+        trayPrice: 42.0,
+        trayServes: 10,
         unitPrice: 4.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -60,9 +64,11 @@ export class MenuCacheService {
         category: 'Starters',
         dietary: ['Vegetarian', 'Gluten-Free'],
         description: 'Tandoor-charred cottage cheese cubes with bell peppers and spiced yoghurt marinade',
-        pricingType: 'Per Person',
+        perPersonPrice: 3.5,
+        trayPrice: 32.0,
+        trayServes: 10,
         unitPrice: 3.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -71,9 +77,11 @@ export class MenuCacheService {
         category: 'Starters',
         dietary: ['Non-Veg', 'Halal'],
         description: 'Tender chicken skewers infused with cream cheese, green cardamom, and fresh coriander',
-        pricingType: 'Per Person',
+        perPersonPrice: 4.0,
+        trayPrice: 38.0,
+        trayServes: 10,
         unitPrice: 4.0,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -82,9 +90,11 @@ export class MenuCacheService {
         category: 'Starters',
         dietary: ['Vegetarian', 'Vegan'],
         description: 'Golden spinach, green peas, and potato patties scented with roasted cumin',
-        pricingType: 'Per Person',
+        perPersonPrice: 3.0,
+        trayPrice: 28.0,
+        trayServes: 10,
         unitPrice: 3.0,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
 
@@ -95,9 +105,11 @@ export class MenuCacheService {
         category: 'Mains',
         dietary: ['Non-Veg', 'Halal'],
         description: 'Pulled tandoori chicken simmered in a velvety tomato, butter, and fenugreek gravy',
-        pricingType: 'Per Person',
+        perPersonPrice: 6.5,
+        trayPrice: 60.0,
+        trayServes: 10,
         unitPrice: 6.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -106,9 +118,11 @@ export class MenuCacheService {
         category: 'Mains',
         dietary: ['Vegetarian', 'Gluten-Free'],
         description: 'Paneer batons tossed with coarsely crushed coriander seeds, bell peppers, and rich tomato masala',
-        pricingType: 'Per Person',
+        perPersonPrice: 5.5,
+        trayPrice: 50.0,
+        trayServes: 10,
         unitPrice: 5.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -117,9 +131,11 @@ export class MenuCacheService {
         category: 'Mains',
         dietary: ['Vegetarian', 'Gluten-Free'],
         description: 'Black lentils slow-cooked overnight with churned butter and Kashmiri chili',
-        pricingType: 'Per Person',
+        perPersonPrice: 4.5,
+        trayPrice: 40.0,
+        trayServes: 10,
         unitPrice: 4.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -128,9 +144,11 @@ export class MenuCacheService {
         category: 'Mains',
         dietary: ['Non-Veg', 'Halal'],
         description: 'Tender lamb cuts braised in aromatic alkanet root, fennel, and browned shallot gravy',
-        pricingType: 'Per Person',
+        perPersonPrice: 7.5,
+        trayPrice: 70.0,
+        trayServes: 10,
         unitPrice: 7.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
 
@@ -141,9 +159,11 @@ export class MenuCacheService {
         category: 'Rice & Biryani',
         dietary: ['Non-Veg', 'Halal'],
         description: 'Fragrant aged basmati rice and marinated chicken sealed in dough and dum-cooked with saffron and kewra',
-        pricingType: 'Per Person',
+        perPersonPrice: 6.0,
+        trayPrice: 55.0,
+        trayServes: 10,
         unitPrice: 6.0,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -152,9 +172,11 @@ export class MenuCacheService {
         category: 'Rice & Biryani',
         dietary: ['Vegetarian'],
         description: 'Seasonal vegetables and basmati rice dum-cooked with whole spices and brown onions',
-        pricingType: 'Per Person',
+        perPersonPrice: 5.0,
+        trayPrice: 45.0,
+        trayServes: 10,
         unitPrice: 5.0,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
 
@@ -165,9 +187,11 @@ export class MenuCacheService {
         category: 'Breads',
         dietary: ['Vegetarian'],
         description: 'Soft leavened refined flour flatbread brushed with organic butter',
-        pricingType: 'Per Person',
+        perPersonPrice: 1.5,
+        trayPrice: 14.0, // Pack of 10
+        trayServes: 10,
         unitPrice: 1.5,
-        minQuantity: 15,
+        minQuantity: 5,
         available: true,
       },
       {
@@ -176,9 +200,11 @@ export class MenuCacheService {
         category: 'Breads',
         dietary: ['Vegetarian'],
         description: 'Flaky multi-layered whole wheat bread baked in clay tandoor',
-        pricingType: 'Per Person',
+        perPersonPrice: 1.8,
+        trayPrice: 16.0, // Pack of 10
+        trayServes: 10,
         unitPrice: 1.8,
-        minQuantity: 15,
+        minQuantity: 5,
         available: true,
       },
 
@@ -189,9 +215,11 @@ export class MenuCacheService {
         category: 'Desserts',
         dietary: ['Vegetarian'],
         description: 'Deep fried milk dough dumplings soaked in rose syrup served alongside condensed saffron milk',
-        pricingType: 'Per Person',
+        perPersonPrice: 3.0,
+        trayPrice: 28.0, // Party tray of 20 dumplings
+        trayServes: 10,
         unitPrice: 3.0,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
       {
@@ -200,9 +228,11 @@ export class MenuCacheService {
         category: 'Desserts',
         dietary: ['Vegetarian'],
         description: 'Delicate cottage cheese patties soaked in chilled cardamom milk and crushed slivered nuts',
-        pricingType: 'Per Person',
+        perPersonPrice: 3.5,
+        trayPrice: 32.0, // Party tray of 20 dumplings
+        trayServes: 10,
         unitPrice: 3.5,
-        minQuantity: 15,
+        minQuantity: 1,
         available: true,
       },
     ];
@@ -256,7 +286,7 @@ export class MenuCacheService {
     ];
 
     this.lastFetchedAt = Date.now();
-    this.logger.log(`Initialized in-memory menu cache with ${this.menuItems.length} items and ${this.packages.length} curated packages.`);
+    this.logger.log(`Initialized menu with Dual Pricing: Per Person & Party Trays for all ${this.menuItems.length} dishes.`);
   }
 
   public getMenuItems(): MenuItem[] {
@@ -283,13 +313,6 @@ export class MenuCacheService {
 
   public getItemById(itemId: string): MenuItem | undefined {
     return this.menuItems.find((item) => item.id.toUpperCase() === itemId.toUpperCase());
-  }
-
-  public setCache(items: MenuItem[], packages: CateringPackage[]): void {
-    this.menuItems = items;
-    this.packages = packages;
-    this.lastFetchedAt = Date.now();
-    this.logger.log(`Refreshed menu cache with ${items.length} items and ${packages.length} packages.`);
   }
 
   public isCacheStale(): boolean {

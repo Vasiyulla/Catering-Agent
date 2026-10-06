@@ -64,6 +64,10 @@ export const CateringStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
     default: () => '',
   }),
+  orderMode: Annotation<string>({
+    reducer: (x, y) => y ?? x,
+    default: () => 'FEAST_PACKAGE', // 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS'
+  }),
 
   // Menu selection & pricing
   selectedPackageId: Annotation<string>({
