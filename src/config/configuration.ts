@@ -8,11 +8,13 @@ export interface AppConfig {
     appSecret: string;
   };
   ai: {
-    provider: 'gemini' | 'openai';
+    provider: 'gemini' | 'openai' | 'openrouter';
     geminiApiKey: string;
     geminiModel: string;
     openaiApiKey: string;
     openaiModel: string;
+    openrouterApiKey: string;
+    openrouterModel: string;
   };
   airtable: {
     apiKey: string;
@@ -43,11 +45,13 @@ export default (): AppConfig => ({
     appSecret: process.env.WHATSAPP_APP_SECRET ?? '',
   },
   ai: {
-    provider: (process.env.AI_PROVIDER as 'gemini' | 'openai') ?? 'gemini',
+    provider: (process.env.AI_PROVIDER as 'gemini' | 'openai' | 'openrouter') ?? 'openrouter',
     geminiApiKey: process.env.GEMINI_API_KEY ?? '',
     geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
     openaiApiKey: process.env.OPENAI_API_KEY ?? '',
     openaiModel: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    openrouterApiKey: process.env.OPENROUTER_API_KEY ?? '',
+    openrouterModel: process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini',
   },
   airtable: {
     apiKey: process.env.AIRTABLE_API_KEY ?? '',

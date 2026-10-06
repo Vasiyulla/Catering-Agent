@@ -39,7 +39,24 @@ export class AgentService implements OnModuleInit {
     const openaiKey = this.configService.get<string>('ai.openaiApiKey');
     const openaiModel = this.configService.get<string>('ai.openaiModel') || 'gpt-4o-mini';
 
-    if (provider === 'gemini' && geminiKey) {
+    const openrouterKey = this.configService.get<string>('ai.openrouterApiKey');
+    const openrouterModel = this.configService.get<string>('ai.openrouterModel') || 'openai/gpt-4o-mini';
+
+    if (provider === 'openrouter' && openrouterKey) {
+      this.llm = new ChatOpenAI({
+        apiKey: openrouterKey,
+        model: openrouterModel,
+        configuration: {
+          baseURL: 'https://openrouter.ai/api/v1',
+          defaultHeaders: {
+            'HTTP-Referer': 'https://catering-agent.onrender.com',
+            'X-Title': 'Dil Se Catering Agent',
+          },
+        },
+        temperature: 0.2,
+      });
+      this.logger.log(`Initialized OpenRouter LLM (${openrouterModel}).`);
+    } else if (provider === 'gemini' && geminiKey) {
       this.llm = new ChatGoogleGenerativeAI({
         apiKey: geminiKey,
         model: geminiModel,
