@@ -52,7 +52,7 @@ export class AirtableService implements OnModuleInit {
     const apiKey = this.configService.get<string>('airtable.apiKey');
     const baseId = this.configService.get<string>('airtable.baseId');
 
-    if (apiKey && baseId && apiKey.startsWith('pat_')) {
+    if (apiKey && baseId && apiKey.startsWith('pat')) {
       const airtableInstance = new Airtable({ apiKey });
       this.base = airtableInstance.base(baseId);
       this.isConfigured = true;
