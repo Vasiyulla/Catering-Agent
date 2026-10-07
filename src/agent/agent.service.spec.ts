@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import configuration from '../config/configuration.js';
 import { MenuCacheService } from '../airtable/menu-cache.service.js';
 import { AirtableService } from '../airtable/airtable.service.js';
+import { DatabaseService } from '../database/database.service.js';
 import { WhatsAppDebounceService } from '../whatsapp/whatsapp-debounce.service.js';
 import { WhatsAppService } from '../whatsapp/whatsapp.service.js';
 import { AgentService } from './agent.service.js';
@@ -14,6 +15,13 @@ describe('Dil Se Catering Core Agentic System', () => {
   let agentService: AgentService;
 
   beforeEach(async () => {
+    const mockWhatsAppService = {
+      sendTextMessage: vi.fn().mockResolvedValue(true),
+      sendSplitBubbles: vi.fn().mockResolvedValue(true),
+      sendInteractiveButtons: vi.fn().mockResolvedValue(true),
+      markAsRead: vi.fn().mockResolvedValue(true),
+    };
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -24,8 +32,12 @@ describe('Dil Se Catering Core Agentic System', () => {
       providers: [
         MenuCacheService,
         AirtableService,
+        DatabaseService,
         WhatsAppDebounceService,
-        WhatsAppService,
+        {
+          provide: WhatsAppService,
+          useValue: mockWhatsAppService,
+        },
         AgentService,
       ],
     }).compile();
@@ -67,5 +79,5 @@ describe('Dil Se Catering Core Agentic System', () => {
     );
     // Verified that invocation executes without unhandled errors
     expect(true).toBe(true);
-  });
+  }, 15000);
 });

@@ -5,11 +5,13 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { CateringStateAnnotation, CateringStateType, CateringStateUpdate } from './catering.state.js';
 import { MenuCacheService } from '../../airtable/menu-cache.service.js';
 import { AirtableService } from '../../airtable/airtable.service.js';
+import { DatabaseService } from '../../database/database.service.js';
 import { SYSTEM_PROMPT } from '../prompts/system.prompt.js';
 
 interface ModelOutputJson {
   thought?: string;
   replyMessage: string;
+  splitBubbles?: string[];
   suggestedButtons?: { id: string; title: string }[];
   extractedSlots?: {
     orderMode?: string | null;
@@ -30,6 +32,7 @@ export function buildCateringGraph(
   llm: BaseChatModel | null,
   menuCacheService: MenuCacheService,
   airtableService: AirtableService,
+  databaseService?: DatabaseService,
 ) {
   const logger = new Logger('CateringGraph');
   const memorySaver = new MemorySaver();
@@ -81,6 +84,7 @@ LATEST USER MESSAGE:
 `;
 
     let replyText = '';
+    let splitBubbles: string[] = [];
     let buttons: { id: string; title: string }[] = [];
     let updatedSlots = state;
     let isConfirmed = state.isConfirmed;
@@ -99,7 +103,10 @@ LATEST USER MESSAGE:
         const cleanedJson = rawContent.replace(/```json\n?|\n?```/g, '').trim();
         const parsed: ModelOutputJson = JSON.parse(cleanedJson);
 
-        replyText = parsed.replyMessage;
+        replyText = parsed.replyMessage || (parsed.splitBubbles ? parsed.splitBubbles.join('\n\n') : '');
+        splitBubbles = parsed.splitBubbles && parsed.splitBubbles.length > 0
+          ? parsed.splitBubbles
+          : (replyText ? [replyText] : []);
         buttons = (parsed.suggestedButtons || []).slice(0, 3);
 
         if (parsed.extractedSlots) {
@@ -127,8 +134,11 @@ LATEST USER MESSAGE:
       } catch (err: unknown) {
         const error = err as Error;
         logger.error(`LLM invocation error: ${error.message}. Triggering graceful fallback handler.`);
-        replyText =
-          'Namaste! Welcome to Dil Se Catering ❤️ Are you planning a Complete Feast Buffet (per person) or ordering individual Party Trays (bulk dishes)?';
+        splitBubbles = [
+          'Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations.',
+          'Are you looking for our complete per-person Feast Buffet, or individual bulk Party Trays?',
+        ];
+        replyText = splitBubbles.join('\n\n');
         buttons = [
           { id: 'btn_feast', title: '👑 Complete Feast' },
           { id: 'btn_trays', title: '🥘 Party Trays' },
@@ -140,8 +150,11 @@ LATEST USER MESSAGE:
       const msg = state.lastUserMessage.toLowerCase();
       if (msg.includes('tray') || msg.includes('bulk') || msg.includes('dish') || msg.includes('plate')) {
         orderMode = 'A_LA_CARTE_TRAYS';
-        replyText =
-          'Perfect! Here are our most popular bulk Party Trays (each tray generously serves ~10 guests):\n• Awadhi Chicken Dum Biryani: £55/tray\n• Old Delhi Butter Chicken: £60/tray\n• Shahi Kadhai Paneer: £50/tray\n• Slow-Cooked Dal Makhani: £40/tray\n• Amritsari Fish Tikka: £42/tray\n• Fresh Tandoori Naan: £14 (pack of 10)\n\nWhich dishes and how many trays would you like?';
+        splitBubbles = [
+          'Spot on! Here are our most popular bulk Party Trays (each tray generously feeds ~10 guests):\n• Awadhi Chicken Dum Biryani: £55\n• Old Delhi Butter Chicken: £60\n• Shahi Kadhai Paneer: £50\n• Slow-Cooked Dal Makhani: £40\n• Amritsari Fish Tikka: £42\n• Fresh Tandoori Naan: £14 (pack of 10)',
+          'Which dishes and how many trays would you like to arrange?',
+        ];
+        replyText = splitBubbles.join('\n\n');
         buttons = [
           { id: 'tray_biryani', title: '🍗 Biryani Tray' },
           { id: 'tray_butterchicken', title: '🍛 Butter Chicken' },
@@ -149,23 +162,32 @@ LATEST USER MESSAGE:
         ];
       } else if (msg.includes('feast') || msg.includes('package') || msg.includes('buffet') || msg.includes('menu')) {
         orderMode = 'FEAST_PACKAGE';
-        replyText =
-          'Here are our Royal Feast Packages (complete per-person buffet spread):\n• 👑 Dil Se Classic Feast: £14.50/person (2 Starters, 2 Mains, Dal, Biryani, Naan & Gulab Jamun)\n• 👑 Royal Celebration Feast: £18.00/person (3 Starters, 3 Mains, Dal, Biryani, 2 Breads, 2 Desserts)\n\nApproximately how many guests are you expecting?';
+        splitBubbles = [
+          'Lovely choice! Here are our curated Royal Feast spreads:\n• 👑 Dil Se Classic Feast: £14.50/person\n• 👑 Royal Celebration Feast: £18.00/person\n• 💼 Executive Buffet: £13.00/person',
+          'Approximately how many guests are you expecting?',
+        ];
+        replyText = splitBubbles.join('\n\n');
         buttons = [
           { id: 'pkg_classic', title: 'Classic (£14.50)' },
           { id: 'pkg_royal', title: 'Royal (£18.00)' },
         ];
       } else if (msg.includes('hi') || msg.includes('hello') || msg.includes('namaste')) {
-        replyText =
-          'Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations. Are you looking for a Complete Feast (per person buffet) or individual Party Trays?';
+        splitBubbles = [
+          'Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations.',
+          'Are you looking for a Complete Feast (per person buffet) or individual Party Trays?',
+        ];
+        replyText = splitBubbles.join('\n\n');
         buttons = [
           { id: 'btn_feast', title: '👑 Complete Feast' },
           { id: 'btn_trays', title: '🥘 Party Trays' },
           { id: 'btn_human', title: '📞 Talk to Team' },
         ];
       } else {
-        replyText =
-          'Thank you for your message! To help us prepare the best catering quote, please let us know your Event Date, Location, and whether you prefer our Complete Feast or Bulk Party Trays.';
+        splitBubbles = [
+          'Thank you for reaching out to Dil Se Catering ❤️',
+          'To help us prepare the best catering quote, what is your event date, postcode, and preferred catering style?',
+        ];
+        replyText = splitBubbles.join('\n\n');
         buttons = [
           { id: 'btn_feast', title: '👑 Complete Feast' },
           { id: 'btn_trays', title: '🥘 Party Trays' },
@@ -182,34 +204,74 @@ LATEST USER MESSAGE:
       }
     }
 
-    // If confirmed, persist to Airtable
+    // If confirmed, persist to Enterprise Database and sync to Airtable
     if (isConfirmed && !state.isConfirmed) {
-      logger.log(`Customer ${state.phoneNumber} confirmed order! Committing to Airtable...`);
-      const customer = await airtableService.findOrCreateCustomer(
-        state.customerName || 'WhatsApp Customer',
-        state.phoneNumber,
-        updatedSlots.deliveryLocation,
-      );
+      logger.log(`Customer ${state.phoneNumber} confirmed order! Committing to Enterprise Database...`);
 
-      const event = await airtableService.createEvent({
-        customerId: customer.id || state.phoneNumber,
-        eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
-        eventDate: updatedSlots.eventDate || new Date().toISOString(),
-        guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
-        deliveryAddress: updatedSlots.deliveryLocation || 'London',
-        dietarySplit: updatedSlots.dietaryPreference || 'Mixed',
-        status: 'Quoted',
-      });
+      if (databaseService) {
+        try {
+          const dbCust = await databaseService.findOrCreateCustomer(
+            state.customerName || 'WhatsApp Customer',
+            state.phoneNumber,
+            updatedSlots.deliveryLocation,
+          );
 
-      await airtableService.createOrder({
-        customerId: customer.id || state.phoneNumber,
-        eventId: event.id || 'EVT-001',
-        orderStatus: 'Confirmed',
-        estimatedTotal: calculatedTotal || 250,
-        itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
-      });
+          const dbEvent = await databaseService.createEvent({
+            customerId: dbCust.id,
+            eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
+            eventDate: updatedSlots.eventDate || new Date().toISOString().split('T')[0],
+            guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
+            deliveryAddress: updatedSlots.deliveryLocation || 'London',
+            dietaryPreference: updatedSlots.dietaryPreference || 'Mixed',
+            status: 'CONFIRMED',
+          });
+
+          await databaseService.createOrder({
+            customerId: dbCust.id,
+            eventId: dbEvent.id,
+            orderMode: orderMode as 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS',
+            selectedPackageId: updatedSlots.selectedPackageId || undefined,
+            totalAmount: calculatedTotal || 250,
+            itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
+          });
+          logger.log(`✅ [DB_SUCCESS] Relational order & event committed to enterprise database.`);
+        } catch (dbErr: unknown) {
+          logger.error(`Enterprise database write error: ${(dbErr as Error).message}`);
+        }
+      }
+
+      // Secondary sync to Airtable (resilient, non-blocking)
+      try {
+        const customer = await airtableService.findOrCreateCustomer(
+          state.customerName || 'WhatsApp Customer',
+          state.phoneNumber,
+          updatedSlots.deliveryLocation,
+        );
+
+        const event = await airtableService.createEvent({
+          customerId: customer.id || state.phoneNumber,
+          eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
+          eventDate: updatedSlots.eventDate || new Date().toISOString(),
+          guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
+          deliveryAddress: updatedSlots.deliveryLocation || 'London',
+          dietarySplit: updatedSlots.dietaryPreference || 'Mixed',
+          status: 'Quoted',
+        });
+
+        await airtableService.createOrder({
+          customerId: customer.id || state.phoneNumber,
+          eventId: event.id || 'EVT-001',
+          orderStatus: 'Confirmed',
+          estimatedTotal: calculatedTotal || 250,
+          itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
+        });
+        logger.log(`✅ [AIRTABLE_SYNC] Synced booking to Airtable.`);
+      } catch (atErr: unknown) {
+        logger.warn(`Secondary Airtable sync skipped or failed: ${(atErr as Error).message}`);
+      }
 
       replyText += '\n\n🎉 *Order Confirmed!* Your booking has been locked in our system. Our catering manager will contact you shortly to coordinate serving logistics.';
+      splitBubbles.push('🎉 *Order Confirmed!* Your booking has been locked in our system. Our catering manager will contact you shortly to coordinate serving logistics.');
       buttons = [{ id: 'btn_support', title: '💬 Contact Team' }];
     }
 
@@ -233,6 +295,7 @@ LATEST USER MESSAGE:
       humanHandoffRequired: requiresHandoff,
       handoffReason,
       replyMessage: replyText,
+      splitBubbles,
       interactiveButtons: buttons,
     };
   };

@@ -5,6 +5,7 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOpenAI } from '@langchain/openai';
 import { MenuCacheService } from '../airtable/menu-cache.service.js';
 import { AirtableService } from '../airtable/airtable.service.js';
+import { DatabaseService } from '../database/database.service.js';
 import { buildCateringGraph } from './graph/catering.graph.js';
 import { WhatsAppService } from '../whatsapp/whatsapp.service.js';
 
@@ -18,6 +19,7 @@ export class AgentService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly menuCacheService: MenuCacheService,
     private readonly airtableService: AirtableService,
+    private readonly databaseService: DatabaseService,
     @Inject(forwardRef(() => WhatsAppService))
     private readonly whatsappService: WhatsAppService,
   ) {}
@@ -28,6 +30,7 @@ export class AgentService implements OnModuleInit {
       this.llm,
       this.menuCacheService,
       this.airtableService,
+      this.databaseService,
     );
     this.logger.log('LangGraph agent initialized with thread checkpointer.');
   }
@@ -89,6 +92,22 @@ export class AgentService implements OnModuleInit {
     try {
       this.logger.log(`Invoking agent graph for ${phoneNumber} (${senderName})...`);
 
+      // 1. Enterprise Database: Register/retrieve customer & audit message atomically
+      const dbCust = await this.databaseService.findOrCreateCustomer(senderName, phoneNumber);
+      await this.databaseService.logMessage({
+        customerId: dbCust.id,
+        phoneNumber,
+        direction: 'INBOUND',
+        messageText,
+      });
+
+      // 2. Secondary viewer sync (Airtable, non-blocking)
+      try {
+        await this.airtableService.findOrCreateCustomer(senderName, phoneNumber);
+      } catch (err: unknown) {
+        this.logger.warn(`Could not sync customer to Airtable: ${(err as Error).message}`);
+      }
+
       const result = await this.graph.invoke(
         {
           phoneNumber,
@@ -103,12 +122,27 @@ export class AgentService implements OnModuleInit {
       );
 
       const reply = result.replyMessage;
+      const splitBubbles: string[] =
+        result.splitBubbles && result.splitBubbles.length > 0
+          ? result.splitBubbles
+          : (reply ? [reply] : []);
       const buttons = result.interactiveButtons || [];
 
       if (buttons && buttons.length > 0) {
-        await this.whatsappService.sendInteractiveButtons(phoneNumber, reply, buttons);
+        if (splitBubbles.length > 1) {
+          const leadBubbles = splitBubbles.slice(0, -1);
+          const finalBubble = splitBubbles[splitBubbles.length - 1];
+          await this.whatsappService.sendSplitBubbles(phoneNumber, leadBubbles);
+          await this.whatsappService.sendInteractiveButtons(phoneNumber, finalBubble, buttons);
+        } else {
+          await this.whatsappService.sendInteractiveButtons(
+            phoneNumber,
+            splitBubbles[0] || reply,
+            buttons,
+          );
+        }
       } else {
-        await this.whatsappService.sendTextMessage(phoneNumber, reply);
+        await this.whatsappService.sendSplitBubbles(phoneNumber, splitBubbles);
       }
     } catch (err: unknown) {
       const error = err as Error;

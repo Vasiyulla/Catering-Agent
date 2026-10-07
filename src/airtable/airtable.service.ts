@@ -88,31 +88,28 @@ export class AirtableService implements OnModuleInit {
         const table = this.configService.get<string>('airtable.tables.customers') ?? 'Customers';
         const existing = await this.base(table)
           .select({
-            filterByFormula: `{WhatsApp Number} = '${phoneNumber}'`,
+            filterByFormula: `{Number} = '${phoneNumber}'`,
             maxRecords: 1,
           })
           .firstPage();
 
         if (existing.length > 0) {
           const rec = existing[0];
+          this.logger.log(`Found existing customer in Airtable: ${rec.get('Name') || name} (${phoneNumber})`);
           return {
             id: rec.id,
             name: (rec.get('Name') as string) || name,
-            phoneNumber: (rec.get('WhatsApp Number') as string) || phoneNumber,
-            location: rec.get('Location') as string,
+            phoneNumber: (rec.get('Number') as string) || (rec.get('WhatsApp Number') as string) || phoneNumber,
           };
         }
 
-        const created = await this.base(table).create([
-          {
-            fields: {
-              Name: name || 'Guest Customer',
-              'WhatsApp Number': phoneNumber,
-              Location: location || '',
-              Status: 'Active',
-            },
-          },
-        ]);
+        const fieldsToInsert: any = {
+          Name: name || 'Guest Customer',
+          Number: phoneNumber,
+        };
+
+        const created = await this.base(table).create([{ fields: fieldsToInsert }]);
+        this.logger.log(`Created new Customer record in Airtable: ${name} (${phoneNumber})`);
 
         return {
           id: created[0].id,

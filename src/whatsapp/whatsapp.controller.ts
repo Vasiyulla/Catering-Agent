@@ -13,7 +13,9 @@ import {
 import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { WhatsAppDebounceService } from './whatsapp-debounce.service.js';
+import { WhatsAppService } from './whatsapp.service.js';
 import { AgentService } from '../agent/agent.service.js';
+import { maskPhoneNumber } from '../common/utils/pii.util.js';
 import type { WhatsAppWebhookPayload } from './dto/whatsapp-webhook.dto.js';
 
 @Controller('webhook')
@@ -23,6 +25,7 @@ export class WhatsAppController {
   constructor(
     private readonly configService: ConfigService,
     private readonly debounceService: WhatsAppDebounceService,
+    private readonly whatsappService: WhatsAppService,
     @Inject(forwardRef(() => AgentService))
     private readonly agentService: AgentService,
   ) {}
@@ -53,7 +56,7 @@ export class WhatsAppController {
    * Incoming Meta message webhook receiver
    */
   @Post()
-  handleIncomingWebhook(@Body() payload: any, @Res() res: Response) {
+  async handleIncomingWebhook(@Body() payload: any, @Res() res: Response) {
     this.logger.log(`📥 [INCOMING_META_WEBHOOK] Entry count: ${payload?.entry?.length || 0}`);
 
     // 1. Return HTTP 200 OK immediately to satisfy Meta's 3-second SLA
@@ -70,7 +73,7 @@ export class WhatsAppController {
           const statuses = value.statuses || [];
 
           if (statuses.length > 0) {
-            this.logger.log(`ℹ️ [META_STATUS_UPDATE] Message status: ${statuses[0]?.status} for ${statuses[0]?.recipient_id}`);
+            this.logger.log(`ℹ️ [META_STATUS_UPDATE] Message status: ${statuses[0]?.status} for ${maskPhoneNumber(statuses[0]?.recipient_id)}`);
           }
 
           for (const msg of messages) {
@@ -92,7 +95,10 @@ export class WhatsAppController {
               incomingText = msg.interactive.button_reply.title;
             }
 
-            this.logger.log(`📩 [MESSAGE_RECEIVED] From: ${from} (${senderName}) | Text: "${incomingText}"`);
+            this.logger.log(`📩 [MESSAGE_RECEIVED] From: ${maskPhoneNumber(from)} (${senderName}) | Text: "${incomingText}"`);
+
+            // Instantly send read receipts (blue ticks) for realistic human responsiveness
+            await this.whatsappService.markAsRead(wamid);
 
             if (incomingText.trim()) {
               this.debounceService.bufferMessage(
@@ -100,7 +106,7 @@ export class WhatsAppController {
                 senderName,
                 incomingText,
                 async (senderPhone, name, combined) => {
-                  this.logger.log(`🚀 [DISPATCHING_TO_AGENT] Processing for ${senderPhone}: "${combined}"`);
+                  this.logger.log(`🚀 [DISPATCHING_TO_AGENT] Processing for ${maskPhoneNumber(senderPhone)}: "${combined}"`);
                   await this.agentService.handleCustomerMessage(senderPhone, name, combined);
                 },
               );

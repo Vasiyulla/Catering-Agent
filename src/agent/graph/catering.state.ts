@@ -102,6 +102,10 @@ export const CateringStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
     default: () => '',
   }),
+  splitBubbles: Annotation<string[]>({
+    reducer: (x, y) => y ?? x,
+    default: () => [],
+  }),
   interactiveButtons: Annotation<InteractiveButtonState[]>({
     reducer: (x, y) => y ?? x,
     default: () => [],

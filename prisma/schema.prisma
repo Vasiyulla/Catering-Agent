@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  name        String
+  phoneNumber String    @unique @map("phone_number")
+  postcode    String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  events      Event[]
+  orders      Order[]
+  messages    Message[]
+
+  @@map("customers")
+}
+
+model Event {
+  id                String    @id @default(uuid())
+  customerId        String    @map("customer_id")
+  eventType         String?   @map("event_type")
+  eventDate         DateTime  @map("event_date")
+  servingTime       String?   @map("serving_time")
+  guestCount        Int       @map("guest_count")
+  deliveryAddress   String?   @map("delivery_address")
+  dietaryPreference String?   @map("dietary_preference")
+  status            String    @default("QUOTED") // QUOTED, CONFIRMED, COMPLETED, CANCELLED
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders            Order[]
+
+  @@map("events")
+}
+
+model Order {
+  id                String    @id @default(uuid())
+  customerId        String    @map("customer_id")
+  eventId           String?   @map("event_id")
+  orderMode         String    @map("order_mode") // FEAST_PACKAGE or A_LA_CARTE_TRAYS
+  selectedPackageId String?   @map("selected_package_id")
+  totalAmount       Decimal   @map("total_amount") @db.Decimal(10, 2)
+  paymentStatus     String    @default("PENDING") @map("payment_status")
+  itemsSummary      String?   @map("items_summary")
+  confirmedAt       DateTime? @map("confirmed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  event             Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@map("orders")
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  customerId  String?   @map("customer_id")
+  direction   String    // INBOUND or OUTBOUND
+  messageText String    @map("message_text")
+  wamid       String?   @unique
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
