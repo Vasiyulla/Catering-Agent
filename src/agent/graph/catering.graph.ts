@@ -103,10 +103,18 @@ LATEST USER MESSAGE:
         const cleanedJson = rawContent.replace(/```json\n?|\n?```/g, '').trim();
         const parsed: ModelOutputJson = JSON.parse(cleanedJson);
 
-        replyText = parsed.replyMessage || (parsed.splitBubbles ? parsed.splitBubbles.join('\n\n') : '');
-        splitBubbles = parsed.splitBubbles && parsed.splitBubbles.length > 0
+        const rawBubbles = parsed.splitBubbles && parsed.splitBubbles.length > 0
           ? parsed.splitBubbles
-          : (replyText ? [replyText] : []);
+          : (parsed.replyMessage ? [parsed.replyMessage] : []);
+
+        // Programmatically strip any "Bubble 1:", "Bubble 2:", "Message 1:" prefix labels
+        splitBubbles = rawBubbles
+          .map((b) => b.replace(/^(?:bubble|message|part)\s*\d+\s*[:\-]\s*/i, '').trim())
+          .filter(Boolean);
+
+        replyText = splitBubbles.join('\n\n') || parsed.replyMessage || '';
+        replyText = replyText.replace(/(?:^|\n)(?:bubble|message|part)\s*\d+\s*[:\-]\s*/gi, '').trim();
+
         buttons = (parsed.suggestedButtons || []).slice(0, 3);
 
         if (parsed.extractedSlots) {
