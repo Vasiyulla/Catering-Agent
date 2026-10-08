@@ -150,7 +150,21 @@ function buildDeterministicFallback(params: {
     };
   }
 
-  // 2. If Feast Buffet Packages requested
+  // 2. If client is specifically asking for the menu or dishes
+  if (userText.includes('menu') || userText.includes('dish') || userText.includes('spread') || userText.includes('what do you have') || userText.includes('food')) {
+    const bubble1 = `Here is our delicious Dil Se Classic Feast menu spread for your celebration! 🍽️`;
+    const bubble2 = `👑 *Dil Se Classic Feast Spread (£14.50/person):*\n• *Starters*: Amritsari Fish Tikka & Punjabi Samosas\n• *Mains*: Old Delhi Butter Chicken & Shahi Kadhai Paneer\n• *Dal*: Slow-Cooked Dal Makhani\n• *Rice*: Awadhi Chicken Dum Biryani\n• *Bread*: Fresh Tandoori Butter Naan\n• *Dessert*: Warm Gulab Jamun\n*(Includes buffet warmers, chaffing dishes & cutlery setup)*\n\nWould you like to customize any dishes, or explore bulk Party Trays?`;
+    return {
+      splitBubbles: [bubble1.trim(), bubble2.trim()],
+      buttons: [
+        { id: 'btn_classic', title: '👑 Classic Feast' },
+        { id: 'btn_trays', title: '🥘 Party Trays' },
+        { id: 'btn_human', title: '💬 Customise Dishes' },
+      ],
+    };
+  }
+
+  // 3. If Feast Buffet Packages requested
   if (orderMode === 'FEAST_PACKAGE' || userText.includes('feast') || userText.includes('package') || userText.includes('buffet')) {
     const advice = hostProtectionAudit?.formattedBubbleAdvice
       ? `\n\n${hostProtectionAudit.formattedBubbleAdvice}`
@@ -299,6 +313,23 @@ ${verifiedQuoteResult.smartReceiptCard}
       }
     }
 
+    const isMenuInquiry =
+      userText.includes('menu') ||
+      userText.includes('dish') ||
+      userText.includes('option') ||
+      userText.includes('include') ||
+      userText.includes('food') ||
+      userText.includes('item') ||
+      userText.includes('list') ||
+      userText.includes('spread') ||
+      userText.includes('what do you have');
+
+    // Anti-Repetition Check: Determine if Host Protection advice was already delivered in conversation history
+    const historyText = (state.conversationHistory || []).join(' ').toLowerCase();
+    const alreadyDeliveredStealth = historyText.includes('paneer') && (historyText.includes('cushion') || historyText.includes('tuck into'));
+    const alreadyDeliveredWarning = historyText.includes('short') && historyText.includes('trays');
+    const alreadyDeliveredSpice = historyText.includes('mild and buttery') || historyText.includes('mint chutney');
+
     // Deterministic Host Protection Audit
     let hostProtectionAudit: HostProtectionAudit | null = null;
     let hostProtectionPromptContext = 'Portion and dietary balance are optimal.';
@@ -317,15 +348,58 @@ ${verifiedQuoteResult.smartReceiptCard}
         userMessage: rawMsg,
       });
 
-      if (hostProtectionAudit && hostProtectionAudit.trapType !== 'NONE') {
-        hostProtectionPromptContext = `
+      if (isMenuInquiry) {
+        hostProtectionPromptContext = 'Client is asking for the menu/dish list. Focus 100% on delivering the full dish spread and course selections. DO NOT inject paneer cushion tips or portion warnings right now.';
+      } else if (hostProtectionAudit && hostProtectionAudit.trapType !== 'NONE') {
+        const isRepeated =
+          (hostProtectionAudit.trapType === 'STEALTH_MEAT_EATER' && alreadyDeliveredStealth) ||
+          (hostProtectionAudit.trapType === 'UNDER_ORDERING' && alreadyDeliveredWarning) ||
+          (hostProtectionAudit.trapType === 'SPICE_SENSITIVITY' && alreadyDeliveredSpice);
+
+        if (!isRepeated) {
+          hostProtectionPromptContext = `
 HOST PROTECTION INSTINCT (ACTIVE):
 • Trap Detected: ${hostProtectionAudit.headline} (Severity: ${hostProtectionAudit.severity})
 • Catering Advice to the Host: ${hostProtectionAudit.adviceText}
 ${hostProtectionAudit.formattedBubbleAdvice ? `• Recommended Natural Phrasing for Bubble 1 or 2:\n"${hostProtectionAudit.formattedBubbleAdvice}"` : ''}
 `;
+        } else {
+          hostProtectionPromptContext = 'Host protection advice was already delivered previously in this conversation. Do not repeat it.';
+        }
       }
     }
+
+    const menuCatalogContext = `
+AUTHENTIC DIL SE CATERING DISH CATALOG (WHEN CLIENT ASKS FOR MENU OR DISHES, ALWAYS LIST THESE EXACT CHOICES):
+👑 DIL SE CLASSIC FEAST SPREAD (£14.50/person - Min 15 guests):
+  • Starters (Choice of 2): Amritsari Fish Tikka (Halal), Tandoori Murgh Tikka (Halal), Punjabi Samosa Platter (Veg)
+  • Mains (Choice of 2): Old Delhi Butter Chicken (Halal), Shahi Kadhai Paneer (Veg)
+  • Dal (Included): Slow-Cooked Dal Makhani
+  • Rice (Included): Awadhi Chicken Dum Biryani or Subz Nizami Veg Biryani
+  • Bread (Included): Fresh Tandoori Butter Naan
+  • Dessert (Included): Warm Gulab Jamun with Kesari Rabdi
+  (Includes buffet warmers, luxury chaffing dishes, and cutlery setup)
+
+👑 DIL SE ROYAL CELEBRATION FEAST (£18.00/person - Min 20 guests):
+  • Starters (Choice of 3): Amritsari Fish Tikka, Tandoori Murgh Tikka, Punjabi Samosa Platter
+  • Mains (Choice of 3): Old Delhi Butter Chicken, Shahi Kadhai Paneer, Kashmiri Rogan Josh Lamb (Halal)
+  • Dal (Included): Slow-Cooked Dal Makhani
+  • Rice (Included): Awadhi Chicken Dum Biryani or Subz Nizami Veg Biryani
+  • Breads (Choice of 2): Tandoori Butter Naan, Crisp Laccha Paratha
+  • Desserts (Choice of 2): Warm Gulab Jamun, Rasmalai with Pistachio Dust
+
+🥘 POPULAR BULK PARTY TRAYS (Generously serves ~10 guests each):
+  • Awadhi Chicken Dum Biryani: £55 | Subz Nizami Veg Biryani: £45
+  • Old Delhi Butter Chicken: £60 | Shahi Kadhai Paneer: £50 | Kashmiri Rogan Josh Lamb: £70
+  • Slow-Cooked Dal Makhani: £40 | Amritsari Fish Tikka: £42
+  • Fresh Tandoori Butter Naan (Pack of 10): £14
+  • Warm Gulab Jamun (Tray of 20): £28 | Rasmalai with Pistachio: £32
+`;
+
+    const historySnippet = (state.conversationHistory || [])
+      .slice(-6)
+      .map((turn, idx) => `${idx + 1}. ${turn}`)
+      .join('\n');
 
     const promptContext = `
 HOST PROTECTION & SOCIAL EMBARRASSMENT RADAR:
@@ -333,6 +407,8 @@ ${hostProtectionPromptContext}
 
 VERIFIED BILLING CALCULATION (100% DETERMINISTIC - IF QUOTING, USE THESE EXACT NUMBERS):
 ${verifiedCalculationContext}
+
+${menuCatalogContext}
 
 CURRENT COLLECTED STATE:
 • Customer Phone: ${state.phoneNumber}
@@ -347,6 +423,9 @@ CURRENT COLLECTED STATE:
 • Dietary Preference: ${effectiveDiet || 'Not specified'}
 • Selected Package: ${state.selectedPackageId || 'None'}
 • Already Confirmed: ${state.isConfirmed}
+
+RECENT CONVERSATION HISTORY (DO NOT REPEAT TIPS OR QUESTIONS ALREADY GIVEN):
+${historySnippet || 'No prior turns.'}
 
 LATEST USER MESSAGE:
 "${rawMsg}"
@@ -389,11 +468,11 @@ LATEST USER MESSAGE:
           .map(sanitizeBubbleText)
           .filter(Boolean);
 
-        // Host Protection Supervisor Guarantee: Ensure advice is never omitted by LLM
-        if (hostProtectionAudit && hostProtectionAudit.formattedBubbleAdvice) {
+        // Only inject host protection if it was NOT already communicated to the user, and user is not explicitly asking for the menu
+        if (hostProtectionAudit && hostProtectionAudit.formattedBubbleAdvice && !isMenuInquiry) {
           const combined = splitBubbles.join(' ').toLowerCase();
 
-          if (hostProtectionAudit.trapType === 'UNDER_ORDERING') {
+          if (hostProtectionAudit.trapType === 'UNDER_ORDERING' && !alreadyDeliveredWarning) {
             const mentionsWarning =
               combined.includes('short') ||
               combined.includes('only feed') ||
@@ -402,16 +481,16 @@ LATEST USER MESSAGE:
             if (!mentionsWarning && splitBubbles.length > 0) {
               splitBubbles[0] = `${splitBubbles[0]}\n\n${hostProtectionAudit.formattedBubbleAdvice}`;
             }
-          } else if (hostProtectionAudit.trapType === 'STEALTH_MEAT_EATER') {
+          } else if (hostProtectionAudit.trapType === 'STEALTH_MEAT_EATER' && !alreadyDeliveredStealth) {
             const mentionsPaneer =
-              combined.includes('paneer') ||
               combined.includes('cushion') ||
-              combined.includes('vegetarian') ||
+              combined.includes('vegetarian cushion') ||
+              combined.includes('tuck into the paneer') ||
               combined.includes('tuck into');
             if (!mentionsPaneer && splitBubbles.length > 0) {
               splitBubbles[0] = `${splitBubbles[0]}\n\n${hostProtectionAudit.formattedBubbleAdvice}`;
             }
-          } else if (hostProtectionAudit.trapType === 'SPICE_SENSITIVITY') {
+          } else if (hostProtectionAudit.trapType === 'SPICE_SENSITIVITY' && !alreadyDeliveredSpice) {
             const mentionsSpice =
               combined.includes('mild') ||
               combined.includes('spice') ||
@@ -423,9 +502,62 @@ LATEST USER MESSAGE:
           }
         }
 
+        // Robust Anti-Hallucination Menu Delivery Guard
+        const combined = splitBubbles.join(' ').toLowerCase();
+        const distinctDishMatches = [
+          'butter chicken',
+          'amritsari fish',
+          'murgh tikka',
+          'shahi kadhai paneer',
+          'kadhai paneer',
+          'dal makhani',
+          'dum biryani',
+          'veg biryani',
+          'chicken biryani',
+          'tandoori naan',
+          'butter naan',
+          'gulab jamun',
+          'rasmalai',
+          'rogan josh',
+          'samosa platter',
+          'punjabi samosa',
+        ].filter((dish) => combined.includes(dish));
+
+        const hasCourseHeadings =
+          (combined.includes('starter') || combined.includes('starters')) &&
+          (combined.includes('main') || combined.includes('mains'));
+
+        const hasConcreteDishes = distinctDishMatches.length >= 2 || hasCourseHeadings;
+
+        const promisesMenuWithoutContent =
+          (combined.includes("here's the menu") ||
+            combined.includes('here is the menu') ||
+            combined.includes('delighted to share the menu') ||
+            combined.includes('share the menu with you') ||
+            combined.includes("what's included in") ||
+            combined.includes('menu for your')) &&
+          !hasConcreteDishes;
+
+        if ((isMenuInquiry && !hasConcreteDishes) || promisesMenuWithoutContent) {
+          const concreteMenuCard =
+            orderMode === 'A_LA_CARTE_TRAYS'
+              ? `🥘 *Our Popular Bulk Party Trays (Feeds ~10 each):*\n• Awadhi Chicken Dum Biryani: £55\n• Old Delhi Butter Chicken: £60\n• Shahi Kadhai Paneer: £50\n• Slow-Cooked Dal Makhani: £40\n• Amritsari Fish Tikka: £42\n• Fresh Tandoori Butter Naan: £14 (Pack of 10)\n• Warm Gulab Jamun: £28`
+              : `👑 *Dil Se Classic Feast Spread (£14.50/person):*\n• *Starters*: Amritsari Fish Tikka & Punjabi Samosas\n• *Mains*: Old Delhi Butter Chicken & Shahi Kadhai Paneer\n• *Dal*: Slow-Cooked Dal Makhani\n• *Rice*: Awadhi Chicken Dum Biryani\n• *Bread*: Fresh Tandoori Butter Naan\n• *Dessert*: Warm Gulab Jamun\n*(Buffet warmers, chaffing dishes & cutlery setup included)*`;
+
+          splitBubbles = [
+            `Here is the delicious menu spread for your celebration! 🍽️`,
+            `${concreteMenuCard}\n\nWhich of these dishes appeal most to your guests?`,
+          ];
+          buttons = [
+            { id: 'btn_classic', title: '👑 Classic Feast' },
+            { id: 'btn_trays', title: '🥘 Party Trays' },
+            { id: 'btn_human', title: '💬 Customise Dishes' },
+          ];
+        }
+
         replyText = splitBubbles.join('\n\n') || parsed.replyMessage || '';
         replyText = sanitizeBubbleText(replyText);
-        buttons = (parsed.suggestedButtons || []).slice(0, 3);
+        buttons = (parsed.suggestedButtons && parsed.suggestedButtons.length > 0) ? parsed.suggestedButtons.slice(0, 3) : buttons;
 
         if (parsed.extractedSlots) {
           orderMode = (parsed.extractedSlots.orderMode as any) || orderMode;
@@ -596,6 +728,10 @@ LATEST USER MESSAGE:
       replyMessage: replyText,
       splitBubbles,
       interactiveButtons: buttons,
+      conversationHistory: [
+        `Client: ${rawMsg}`,
+        `Kabir: ${splitBubbles.join(' | ')}`,
+      ],
     };
   };
 

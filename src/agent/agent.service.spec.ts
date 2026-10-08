@@ -145,4 +145,45 @@ describe('Dil Se Catering Core Agentic System', () => {
     const combinedText = allSentBubbles.join('\n\n');
     expect(combinedText).not.toMatch(/^(?:bubble|message|part)\s*\d+\s*[:\-]/im);
   }, 35000);
+
+  it('should deliver concrete dishes and prevent hallucinated empty menu promises when asked for the menu', async () => {
+    const mockWa = (agentService as any).whatsappService;
+    mockWa.sendSplitBubbles.mockClear();
+    mockWa.sendInteractiveButtons.mockClear();
+
+    // Customer explicitly asks for the menu
+    await agentService.handleCustomerMessage(
+      '447111222333',
+      'Karan Johar',
+      'Give me the menu',
+    );
+
+    const splitCalls = mockWa.sendSplitBubbles.mock.calls;
+    const buttonCalls = mockWa.sendInteractiveButtons.mock.calls;
+    expect(splitCalls.length + buttonCalls.length).toBeGreaterThan(0);
+
+    const allSentBubbles: string[] = [];
+    splitCalls.forEach((call: any[]) => {
+      if (Array.isArray(call[1])) allSentBubbles.push(...call[1]);
+      else allSentBubbles.push(call[1]);
+    });
+    buttonCalls.forEach((call: any[]) => {
+      allSentBubbles.push(call[1]);
+    });
+
+    const combinedText = allSentBubbles.join('\n\n').toLowerCase();
+
+    // Anti-Hallucination Guarantees:
+    // 1. MUST contain concrete dishes (e.g. Butter Chicken, Tikka, Biryani, Naan, Dal Makhani)
+    const hasDishes =
+      combinedText.includes('butter chicken') ||
+      combinedText.includes('biryani') ||
+      combinedText.includes('dal makhani') ||
+      combinedText.includes('tikka') ||
+      combinedText.includes('samosa');
+    expect(hasDishes).toBe(true);
+
+    // 2. MUST NOT be an empty promise like saying "here's the menu" followed only by a generic tip without dishes
+    expect(combinedText.length).toBeGreaterThan(60);
+  }, 35000);
 });
