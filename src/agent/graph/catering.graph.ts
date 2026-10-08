@@ -6,6 +6,8 @@ import { CateringStateAnnotation, CateringStateType, CateringStateUpdate } from 
 import { MenuCacheService } from '../../airtable/menu-cache.service.js';
 import { AirtableService } from '../../airtable/airtable.service.js';
 import { DatabaseService } from '../../database/database.service.js';
+import { BillingEngineService, QuoteCalculationResult } from '../billing/billing-engine.service.js';
+import { HostProtectionService, HostProtectionAudit } from '../protection/host-protection.service.js';
 import { SYSTEM_PROMPT } from '../prompts/system.prompt.js';
 
 interface ModelOutputJson {
@@ -22,17 +24,189 @@ interface ModelOutputJson {
     deliveryLocation?: string | null;
     dietaryPreference?: string | null;
     selectedPackageId?: string | null;
+    estimatedTotal?: number | null;
+    itemsSummary?: string | null;
   };
   isConfirmed?: boolean;
   requiresHandoff?: boolean;
   handoffReason?: string;
 }
 
+// Deterministic Slot Extraction & Sanitization Helpers
+function extractGuestCount(text: string): number | null {
+  if (!text) return null;
+  const m1 = text.match(/(\d{1,4})\s*(?:people|guests|persons|pax|heads|members)/i);
+  if (m1) return parseInt(m1[1], 10);
+  const m2 = text.match(/\bfor\s+(\d{1,4})\b/i);
+  if (m2) return parseInt(m2[1], 10);
+  const m3 = text.match(/(?:around|approx(?:imately)?)\s*(\d{1,4})/i);
+  if (m3) return parseInt(m3[1], 10);
+  return null;
+}
+
+function extractLocationOrPostcode(text: string): string | null {
+  if (!text) return null;
+  const pcMatch =
+    text.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i) ||
+    text.match(/\b(HA\d|UB\d|TW\d|IG\d|SL\d|WD\d|NW\d|W\d|SW\d|SE\d|E\d|N\d|EC\d|WC\d|EN\d|CR\d)\b/i);
+  if (pcMatch) return pcMatch[1].toUpperCase().trim();
+
+  const areas = [
+    'wembley', 'harrow', 'southall', 'ilford', 'hounslow', 'ealing', 'croydon',
+    'slough', 'watford', 'stratford', 'canary wharf', 'barnet', 'kingston', 'central london'
+  ];
+  const lower = text.toLowerCase();
+  for (const a of areas) {
+    if (lower.includes(a)) {
+      return a.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+  }
+  return null;
+}
+
+function extractDietary(text: string): string | null {
+  if (!text) return null;
+  const l = text.toLowerCase();
+  if ((l.includes('non-veg') || l.includes('non veg')) && (l.includes('veg') || l.includes('vegetarian'))) return 'Mixed (Non-Veg & Veg)';
+  if (l.includes('pure veg') || l.includes('strict veg') || l.includes('only veg') || l.includes('vegetarian')) return 'Vegetarian';
+  if (l.includes('jain')) return 'Jain';
+  if (l.includes('halal')) return 'Certified Halal';
+  if (l.includes('vegan')) return 'Vegan';
+  return null;
+}
+
+function extractTrayDishes(text: string): Array<{ dishQuery: string; quantity: number }> {
+  if (!text) return [];
+  const items: Array<{ dishQuery: string; quantity: number }> = [];
+  const lower = text.toLowerCase();
+
+  const dishKeywords = [
+    { key: 'butter chicken', name: 'Butter Chicken' },
+    { key: 'chicken tikka', name: 'Chicken Tikka' },
+    { key: 'chicken curry', name: 'Butter Chicken' },
+    { key: 'biryani', name: 'Biryani' },
+    { key: 'paneer', name: 'Paneer' },
+    { key: 'dal makhani', name: 'Dal Makhani' },
+    { key: 'dal', name: 'Dal Makhani' },
+    { key: 'naan', name: 'Naan' },
+    { key: 'lamb', name: 'Lamb Rogan Josh' },
+    { key: 'samosa', name: 'Punjabi Samosa' },
+    { key: 'gulab jamun', name: 'Gulab Jamun' },
+  ];
+
+  for (const d of dishKeywords) {
+    if (lower.includes(d.key)) {
+      if (items.some((i) => i.dishQuery.toLowerCase() === d.name.toLowerCase())) continue;
+
+      const r1 = new RegExp(`(\\d+)\\s*(?:trays?|packs?|boxes?)?\\s*(?:of\\s+)?${d.key}`, 'i');
+      const r2 = new RegExp(`${d.key}\\s*(?:x|\\*|:)?\\s*(\\d+)`, 'i');
+      const m1 = lower.match(r1);
+      const m2 = lower.match(r2);
+      let qty = 1;
+      if (m1) qty = parseInt(m1[1], 10);
+      else if (m2) qty = parseInt(m2[1], 10);
+
+      items.push({ dishQuery: d.name, quantity: Math.max(1, qty) });
+    }
+  }
+  return items;
+}
+
+function sanitizeBubbleText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/^(?:[\*\_\[\(\{]*\s*)?(?:bubble|message|part|screen)\s*\d+\s*[:\-\]\)\}]*\s*/i, '')
+    .trim();
+}
+
+function buildDeterministicFallback(params: {
+  verifiedQuoteResult: QuoteCalculationResult | null;
+  hostProtectionAudit: HostProtectionAudit | null;
+  effectiveGuests: number;
+  effectiveLocation: string;
+  orderMode: string;
+  userText: string;
+}): { splitBubbles: string[]; buttons: { id: string; title: string }[] } {
+  const { verifiedQuoteResult, hostProtectionAudit, effectiveGuests, effectiveLocation, orderMode, userText } = params;
+
+  // 1. If deterministic quote is ready, deliver instant transparent receipt card
+  if (verifiedQuoteResult) {
+    const leadAdvice = hostProtectionAudit?.formattedBubbleAdvice
+      ? `\n\n${hostProtectionAudit.formattedBubbleAdvice}`
+      : '';
+    const locNote = effectiveLocation ? ` in ${effectiveLocation}` : '';
+    const guestNote = effectiveGuests > 0 ? ` for your gathering of ${effectiveGuests} guests${locNote}` : locNote;
+
+    const bubble1 = `Namaste! 🙏 Welcome to Dil Se Catering ❤️${guestNote ? `\n\nHere is your transparent catering quotation${guestNote}:` : ''}${leadAdvice}`;
+    const bubble2 = verifiedQuoteResult.smartReceiptCard;
+
+    return {
+      splitBubbles: [bubble1.trim(), bubble2.trim()],
+      buttons: [
+        { id: 'btn_confirm', title: '✅ Lock This Quote' },
+        { id: 'btn_adjust', title: '🥘 Adjust Dishes' },
+        { id: 'btn_human', title: '💬 Speak to Chef' },
+      ],
+    };
+  }
+
+  // 2. If Feast Buffet Packages requested
+  if (orderMode === 'FEAST_PACKAGE' || userText.includes('feast') || userText.includes('package') || userText.includes('buffet')) {
+    const advice = hostProtectionAudit?.formattedBubbleAdvice
+      ? `\n\n${hostProtectionAudit.formattedBubbleAdvice}`
+      : '';
+    const bubble1 = `Lovely choice! Our Royal Feast buffets include fresh starters, slow-cooked curries, dum biryani, fresh naan, and desserts with luxury warmers & setup.${advice}`;
+    const bubble2 = `• 👑 Dil Se Classic Feast: £14.50/person\n• 👑 Royal Celebration Feast: £18.00/person\n• 💼 Executive Buffet: £13.00/person\n\nApproximately how many guests are you expecting?`;
+    return {
+      splitBubbles: [bubble1.trim(), bubble2.trim()],
+      buttons: [
+        { id: 'pkg_classic', title: 'Classic (£14.50)' },
+        { id: 'pkg_royal', title: 'Royal (£18.00)' },
+        { id: 'btn_trays', title: '🥘 Party Trays' },
+      ],
+    };
+  }
+
+  // 3. If Party Trays or Bulk Dishes requested
+  if (orderMode === 'A_LA_CARTE_TRAYS' || userText.includes('tray') || userText.includes('bulk')) {
+    const advice = hostProtectionAudit?.formattedBubbleAdvice
+      ? `\n\n${hostProtectionAudit.formattedBubbleAdvice}`
+      : '';
+    const bubble1 = `Spot on! Our bulk Party Trays generously serve ~10 guests each:\n• Awadhi Chicken Biryani: £55\n• Old Delhi Butter Chicken: £60\n• Shahi Kadhai Paneer: £50\n• Slow-Cooked Dal Makhani: £40\n• Amritsari Fish Tikka: £42\n• Tandoori Naan Pack: £14${advice}`;
+    const bubble2 = `Which dishes and how many trays would you like to arrange?`;
+    return {
+      splitBubbles: [bubble1.trim(), bubble2.trim()],
+      buttons: [
+        { id: 'tray_biryani', title: '🍗 Biryani Tray' },
+        { id: 'tray_butterchicken', title: '🍛 Butter Chicken' },
+        { id: 'tray_paneer', title: '🧀 Paneer Tray' },
+      ],
+    };
+  }
+
+  // 4. Default Warm Hospitality Greeting
+  const advice = hostProtectionAudit?.formattedBubbleAdvice
+    ? `\n\n${hostProtectionAudit.formattedBubbleAdvice}`
+    : '';
+  const bubble1 = `Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations.${advice}`;
+  const bubble2 = `Are you looking for our complete per-person Feast Buffet, or individual bulk Party Trays?`;
+  return {
+    splitBubbles: [bubble1.trim(), bubble2.trim()],
+    buttons: [
+      { id: 'btn_feast', title: '👑 Complete Feast' },
+      { id: 'btn_trays', title: '🥘 Party Trays' },
+      { id: 'btn_human', title: '💬 Speak to Chef' },
+    ],
+  };
+}
+
 export function buildCateringGraph(
   llm: BaseChatModel | null,
   menuCacheService: MenuCacheService,
-  airtableService: AirtableService,
+  airtableService?: AirtableService,
   databaseService?: DatabaseService,
+  billingEngine?: BillingEngineService,
+  hostProtectionService?: HostProtectionService,
 ) {
   const logger = new Logger('CateringGraph');
   const memorySaver = new MemorySaver();
@@ -40,57 +214,157 @@ export function buildCateringGraph(
   const assistantNode = async (state: CateringStateType): Promise<CateringStateUpdate> => {
     logger.log(`Processing state for phone ${state.phoneNumber}. Stage: ${state.currentStage}`);
 
-    const packages = menuCacheService.getPackages();
-    const menuItems = menuCacheService.getMenuItems();
+    const rawMsg = state.lastUserMessage || '';
+    const userText = rawMsg.toLowerCase();
 
-    const packagesContext = packages
-      .map(
-        (p) =>
-          `• [${p.id}] ${p.name} (£${p.perPersonPrice}/person, min ${p.minGuests} guests): ${p.description}`,
-      )
-      .join('\n');
+    // Deterministic Slot Extraction (Sub-millisecond regex execution)
+    const extractedGuests = extractGuestCount(rawMsg);
+    const extractedLocation = extractLocationOrPostcode(rawMsg);
+    const extractedDiet = extractDietary(rawMsg);
+    const extractedDishes = extractTrayDishes(rawMsg);
 
-    const menuContext = menuItems
-      .map(
-        (m) =>
-          `• [${m.id}] ${m.name} (${m.category}, ${m.dietary.join('/')}) - Per-Head: £${m.perPersonPrice} | Party Tray (serves 10): £${m.trayPrice}`,
-      )
-      .join('\n');
+    const effectiveGuests = state.guestCount || extractedGuests || 0;
+    const effectiveLocation = state.deliveryLocation || extractedLocation || '';
+    const effectiveDiet = state.dietaryPreference || extractedDiet || '';
+    const userWantsTrays =
+      extractedDishes.length > 0 ||
+      userText.includes('tray') ||
+      userText.includes('bulk') ||
+      userText.includes('biryani') ||
+      userText.includes('dish') ||
+      userText.includes('naan');
+
+    const userWantsFeast =
+      userText.includes('feast') ||
+      userText.includes('package') ||
+      userText.includes('buffet') ||
+      userText.includes('per person') ||
+      userText.includes('per head');
+
+    let orderMode: 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS' = userWantsTrays
+      ? 'A_LA_CARTE_TRAYS'
+      : userWantsFeast
+        ? 'FEAST_PACKAGE'
+        : ((state.orderMode as any) || 'FEAST_PACKAGE');
+
+    // Deterministic Live Billing Calculation
+    let verifiedCalculationContext = 'No specific quote requested in current turn.';
+    let verifiedQuoteResult: QuoteCalculationResult | null = null;
+
+    if (billingEngine) {
+      if (orderMode === 'A_LA_CARTE_TRAYS' || userWantsTrays) {
+        const parsedItems: Array<{ dishQuery: string; quantity: number }> = [...extractedDishes];
+
+        if (parsedItems.length === 0 && effectiveGuests > 0) {
+          parsedItems.push(...billingEngine.recommendPortionsForGuests(effectiveGuests, effectiveDiet));
+        }
+
+        if (parsedItems.length > 0) {
+          verifiedQuoteResult = billingEngine.calculateTrayOrder({
+            items: parsedItems,
+            guestCount: effectiveGuests || undefined,
+            postcode: effectiveLocation,
+          });
+          verifiedCalculationContext = `
+DETERMINISTIC BILLING ENGINE VERIFIED QUOTE:
+• Mode: Party Trays (generously serves 10 guests per tray)
+• Trays: ${verifiedQuoteResult.summaryText}
+• Capacity: Feeds ~${verifiedQuoteResult.feedsGuestCapacity} guests
+• Total Amount: £${verifiedQuoteResult.totalAmount.toFixed(2)}
+• Cost Per Guest: ~£${verifiedQuoteResult.costPerGuest?.toFixed(2)} per person
+• Delivery: £${verifiedQuoteResult.deliveryFee.toFixed(2)} (${verifiedQuoteResult.deliveryZoneNote})
+• Ready-to-Send Formatted WhatsApp Breakdown:
+${verifiedQuoteResult.smartReceiptCard}
+`;
+        }
+      } else if (orderMode === 'FEAST_PACKAGE' || userWantsFeast) {
+        const pkgId = state.selectedPackageId || (userText.includes('classic') ? 'PKG-SILVER' : 'PKG-GOLD');
+        const quoteGuests = effectiveGuests > 0 ? effectiveGuests : 20;
+        verifiedQuoteResult = billingEngine.calculateFeastPackage({
+          packageIdOrName: pkgId,
+          guestCount: quoteGuests,
+          postcode: effectiveLocation,
+        });
+        verifiedCalculationContext = `
+DETERMINISTIC BILLING ENGINE VERIFIED QUOTE:
+• Mode: Feast Buffet Package (${verifiedQuoteResult.packageName})
+• Guest Count: ${verifiedQuoteResult.guestCount} guests
+• Per Person Rate: £${verifiedQuoteResult.perPersonRate?.toFixed(2)}
+• Total Amount: £${verifiedQuoteResult.totalAmount.toFixed(2)}
+• Cost Per Guest: £${verifiedQuoteResult.costPerGuest?.toFixed(2)} per person
+• Delivery: ${verifiedQuoteResult.deliveryZoneNote}
+• Ready-to-Send Formatted WhatsApp Breakdown:
+${verifiedQuoteResult.smartReceiptCard}
+`;
+      }
+    }
+
+    // Deterministic Host Protection Audit
+    let hostProtectionAudit: HostProtectionAudit | null = null;
+    let hostProtectionPromptContext = 'Portion and dietary balance are optimal.';
+
+    if (hostProtectionService) {
+      const auditItems =
+        verifiedQuoteResult?.items?.map((i) => ({ dishName: i.dishName, quantity: i.quantity })) ||
+        (extractedDishes.length > 0 ? extractedDishes.map((d) => ({ dishName: d.dishQuery, quantity: d.quantity })) : undefined);
+
+      hostProtectionAudit = hostProtectionService.auditOrder({
+        guestCount: effectiveGuests,
+        orderMode,
+        items: auditItems,
+        packageId: state.selectedPackageId,
+        dietaryPreference: effectiveDiet,
+        userMessage: rawMsg,
+      });
+
+      if (hostProtectionAudit && hostProtectionAudit.trapType !== 'NONE') {
+        hostProtectionPromptContext = `
+HOST PROTECTION INSTINCT (ACTIVE):
+• Trap Detected: ${hostProtectionAudit.headline} (Severity: ${hostProtectionAudit.severity})
+• Catering Advice to the Host: ${hostProtectionAudit.adviceText}
+${hostProtectionAudit.formattedBubbleAdvice ? `• Recommended Natural Phrasing for Bubble 1 or 2:\n"${hostProtectionAudit.formattedBubbleAdvice}"` : ''}
+`;
+      }
+    }
 
     const promptContext = `
-ACTIVE MENU & DUAL PRICING (SOURCE OF TRUTH):
---- CURATED FEAST PACKAGES (Per Person) ---
-${packagesContext}
+HOST PROTECTION & SOCIAL EMBARRASSMENT RADAR:
+${hostProtectionPromptContext}
 
---- A LA CARTE DISHES & PARTY TRAYS ---
-${menuContext}
+VERIFIED BILLING CALCULATION (100% DETERMINISTIC - IF QUOTING, USE THESE EXACT NUMBERS):
+${verifiedCalculationContext}
 
 CURRENT COLLECTED STATE:
 • Customer Phone: ${state.phoneNumber}
 • Customer Name: ${state.customerName || 'Unknown'}
 • Current Stage: ${state.currentStage}
-• Order Mode: ${state.orderMode || 'Not chosen'}
+• Order Mode: ${orderMode}
 • Event Type: ${state.eventType || 'Not specified'}
 • Event Date: ${state.eventDate || 'Not specified'}
 • Serving Time: ${state.servingTime || 'Not specified'}
-• Guest Count: ${state.guestCount || 'Not specified'}
-• Location: ${state.deliveryLocation || 'Not specified'}
-• Dietary Preference: ${state.dietaryPreference || 'Not specified'}
+• Guest Count: ${effectiveGuests || 'Not specified'}
+• Location: ${effectiveLocation || 'Not specified'}
+• Dietary Preference: ${effectiveDiet || 'Not specified'}
 • Selected Package: ${state.selectedPackageId || 'None'}
 • Already Confirmed: ${state.isConfirmed}
 
 LATEST USER MESSAGE:
-"${state.lastUserMessage}"
+"${rawMsg}"
 `;
 
     let replyText = '';
     let splitBubbles: string[] = [];
     let buttons: { id: string; title: string }[] = [];
-    let updatedSlots = state;
+    let updatedSlots = {
+      ...state,
+      orderMode,
+      guestCount: effectiveGuests || state.guestCount,
+      deliveryLocation: effectiveLocation || state.deliveryLocation,
+      dietaryPreference: effectiveDiet || state.dietaryPreference,
+    };
     let isConfirmed = state.isConfirmed;
     let requiresHandoff = state.humanHandoffRequired;
     let handoffReason = state.handoffReason;
-    let orderMode = state.orderMode || 'FEAST_PACKAGE';
 
     if (llm) {
       try {
@@ -103,32 +377,72 @@ LATEST USER MESSAGE:
         const cleanedJson = rawContent.replace(/```json\n?|\n?```/g, '').trim();
         const parsed: ModelOutputJson = JSON.parse(cleanedJson);
 
-        const rawBubbles = parsed.splitBubbles && parsed.splitBubbles.length > 0
-          ? parsed.splitBubbles
-          : (parsed.replyMessage ? [parsed.replyMessage] : []);
+        const rawBubbles =
+          parsed.splitBubbles && parsed.splitBubbles.length > 0
+            ? parsed.splitBubbles
+            : parsed.replyMessage
+              ? [parsed.replyMessage]
+              : [];
 
         // Programmatically strip any "Bubble 1:", "Bubble 2:", "Message 1:" prefix labels
         splitBubbles = rawBubbles
-          .map((b) => b.replace(/^(?:bubble|message|part)\s*\d+\s*[:\-]\s*/i, '').trim())
+          .map(sanitizeBubbleText)
           .filter(Boolean);
 
-        replyText = splitBubbles.join('\n\n') || parsed.replyMessage || '';
-        replyText = replyText.replace(/(?:^|\n)(?:bubble|message|part)\s*\d+\s*[:\-]\s*/gi, '').trim();
+        // Host Protection Supervisor Guarantee: Ensure advice is never omitted by LLM
+        if (hostProtectionAudit && hostProtectionAudit.formattedBubbleAdvice) {
+          const combined = splitBubbles.join(' ').toLowerCase();
 
+          if (hostProtectionAudit.trapType === 'UNDER_ORDERING') {
+            const mentionsWarning =
+              combined.includes('short') ||
+              combined.includes('only feed') ||
+              combined.includes('extra tray') ||
+              combined.includes('heads up');
+            if (!mentionsWarning && splitBubbles.length > 0) {
+              splitBubbles[0] = `${splitBubbles[0]}\n\n${hostProtectionAudit.formattedBubbleAdvice}`;
+            }
+          } else if (hostProtectionAudit.trapType === 'STEALTH_MEAT_EATER') {
+            const mentionsPaneer =
+              combined.includes('paneer') ||
+              combined.includes('cushion') ||
+              combined.includes('vegetarian') ||
+              combined.includes('tuck into');
+            if (!mentionsPaneer && splitBubbles.length > 0) {
+              splitBubbles[0] = `${splitBubbles[0]}\n\n${hostProtectionAudit.formattedBubbleAdvice}`;
+            }
+          } else if (hostProtectionAudit.trapType === 'SPICE_SENSITIVITY') {
+            const mentionsSpice =
+              combined.includes('mild') ||
+              combined.includes('spice') ||
+              combined.includes('chutney') ||
+              combined.includes('rich');
+            if (!mentionsSpice && splitBubbles.length > 0) {
+              splitBubbles[0] = `${splitBubbles[0]}\n\n${hostProtectionAudit.formattedBubbleAdvice}`;
+            }
+          }
+        }
+
+        replyText = splitBubbles.join('\n\n') || parsed.replyMessage || '';
+        replyText = sanitizeBubbleText(replyText);
         buttons = (parsed.suggestedButtons || []).slice(0, 3);
 
         if (parsed.extractedSlots) {
-          orderMode = parsed.extractedSlots.orderMode || orderMode;
+          orderMode = (parsed.extractedSlots.orderMode as any) || orderMode;
           updatedSlots = {
             ...updatedSlots,
             orderMode,
             eventType: parsed.extractedSlots.eventType || state.eventType,
             eventDate: parsed.extractedSlots.eventDate || state.eventDate,
             servingTime: parsed.extractedSlots.servingTime || state.servingTime,
-            guestCount: parsed.extractedSlots.guestCount || state.guestCount,
-            deliveryLocation: parsed.extractedSlots.deliveryLocation || state.deliveryLocation,
-            dietaryPreference: parsed.extractedSlots.dietaryPreference || state.dietaryPreference,
+            guestCount: parsed.extractedSlots.guestCount || updatedSlots.guestCount,
+            deliveryLocation: parsed.extractedSlots.deliveryLocation || updatedSlots.deliveryLocation,
+            dietaryPreference: parsed.extractedSlots.dietaryPreference || updatedSlots.dietaryPreference,
             selectedPackageId: parsed.extractedSlots.selectedPackageId || state.selectedPackageId,
+            estimatedTotal:
+              parsed.extractedSlots.estimatedTotal != null && Number(parsed.extractedSlots.estimatedTotal) > 0
+                ? Number(parsed.extractedSlots.estimatedTotal)
+                : state.estimatedTotal,
           };
         }
 
@@ -141,71 +455,37 @@ LATEST USER MESSAGE:
         }
       } catch (err: unknown) {
         const error = err as Error;
-        logger.error(`LLM invocation error: ${error.message}. Triggering graceful fallback handler.`);
-        splitBubbles = [
-          'Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations.',
-          'Are you looking for our complete per-person Feast Buffet, or individual bulk Party Trays?',
-        ];
+        logger.error(`LLM invocation error: ${error.message}. Engaging enterprise deterministic fallback engine.`);
+        const fallback = buildDeterministicFallback({
+          verifiedQuoteResult,
+          hostProtectionAudit,
+          effectiveGuests,
+          effectiveLocation,
+          orderMode,
+          userText,
+        });
+        splitBubbles = fallback.splitBubbles;
         replyText = splitBubbles.join('\n\n');
-        buttons = [
-          { id: 'btn_feast', title: '👑 Complete Feast' },
-          { id: 'btn_trays', title: '🥘 Party Trays' },
-          { id: 'btn_human', title: '💬 Speak to Chef' },
-        ];
+        buttons = fallback.buttons;
       }
     } else {
-      // Deterministic rule-based fallback when LLM API key is not yet configured in .env
-      const msg = state.lastUserMessage.toLowerCase();
-      if (msg.includes('tray') || msg.includes('bulk') || msg.includes('dish') || msg.includes('plate')) {
-        orderMode = 'A_LA_CARTE_TRAYS';
-        splitBubbles = [
-          'Spot on! Here are our most popular bulk Party Trays (each tray generously feeds ~10 guests):\n• Awadhi Chicken Dum Biryani: £55\n• Old Delhi Butter Chicken: £60\n• Shahi Kadhai Paneer: £50\n• Slow-Cooked Dal Makhani: £40\n• Amritsari Fish Tikka: £42\n• Fresh Tandoori Naan: £14 (pack of 10)',
-          'Which dishes and how many trays would you like to arrange?',
-        ];
-        replyText = splitBubbles.join('\n\n');
-        buttons = [
-          { id: 'tray_biryani', title: '🍗 Biryani Tray' },
-          { id: 'tray_butterchicken', title: '🍛 Butter Chicken' },
-          { id: 'tray_paneer', title: '🧀 Paneer Tray' },
-        ];
-      } else if (msg.includes('feast') || msg.includes('package') || msg.includes('buffet') || msg.includes('menu')) {
-        orderMode = 'FEAST_PACKAGE';
-        splitBubbles = [
-          'Lovely choice! Here are our curated Royal Feast spreads:\n• 👑 Dil Se Classic Feast: £14.50/person\n• 👑 Royal Celebration Feast: £18.00/person\n• 💼 Executive Buffet: £13.00/person',
-          'Approximately how many guests are you expecting?',
-        ];
-        replyText = splitBubbles.join('\n\n');
-        buttons = [
-          { id: 'pkg_classic', title: 'Classic (£14.50)' },
-          { id: 'pkg_royal', title: 'Royal (£18.00)' },
-        ];
-      } else if (msg.includes('hi') || msg.includes('hello') || msg.includes('namaste')) {
-        splitBubbles = [
-          'Namaste! Welcome to Dil Se Catering ❤️ Food prepared with pure love for your celebrations.',
-          'Are you looking for a Complete Feast (per person buffet) or individual Party Trays?',
-        ];
-        replyText = splitBubbles.join('\n\n');
-        buttons = [
-          { id: 'btn_feast', title: '👑 Complete Feast' },
-          { id: 'btn_trays', title: '🥘 Party Trays' },
-          { id: 'btn_human', title: '📞 Talk to Team' },
-        ];
-      } else {
-        splitBubbles = [
-          'Thank you for reaching out to Dil Se Catering ❤️',
-          'To help us prepare the best catering quote, what is your event date, postcode, and preferred catering style?',
-        ];
-        replyText = splitBubbles.join('\n\n');
-        buttons = [
-          { id: 'btn_feast', title: '👑 Complete Feast' },
-          { id: 'btn_trays', title: '🥘 Party Trays' },
-        ];
-      }
+      // Deterministic rule-based fallback when LLM API key is not configured
+      const fallback = buildDeterministicFallback({
+        verifiedQuoteResult,
+        hostProtectionAudit,
+        effectiveGuests,
+        effectiveLocation,
+        orderMode,
+        userText,
+      });
+      splitBubbles = fallback.splitBubbles;
+      replyText = splitBubbles.join('\n\n');
+      buttons = fallback.buttons;
     }
 
     // Deterministic Calculation & Business Logic
-    let calculatedTotal = state.estimatedTotal;
-    if (orderMode === 'FEAST_PACKAGE' && updatedSlots.selectedPackageId && updatedSlots.guestCount >= 15) {
+    let calculatedTotal = verifiedQuoteResult?.totalAmount || updatedSlots.estimatedTotal || state.estimatedTotal;
+    if (orderMode === 'FEAST_PACKAGE' && updatedSlots.selectedPackageId && updatedSlots.guestCount >= 15 && !verifiedQuoteResult) {
       const selectedPkg = menuCacheService.getPackageById(updatedSlots.selectedPackageId);
       if (selectedPkg) {
         calculatedTotal = selectedPkg.perPersonPrice * updatedSlots.guestCount;
@@ -248,34 +528,36 @@ LATEST USER MESSAGE:
         }
       }
 
-      // Secondary sync to Airtable (resilient, non-blocking)
-      try {
-        const customer = await airtableService.findOrCreateCustomer(
-          state.customerName || 'WhatsApp Customer',
-          state.phoneNumber,
-          updatedSlots.deliveryLocation,
-        );
+      // Optional secondary sync to Airtable (resilient, non-blocking)
+      if (airtableService) {
+        try {
+          const customer = await airtableService.findOrCreateCustomer(
+            state.customerName || 'WhatsApp Customer',
+            state.phoneNumber,
+            updatedSlots.deliveryLocation,
+          );
 
-        const event = await airtableService.createEvent({
-          customerId: customer.id || state.phoneNumber,
-          eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
-          eventDate: updatedSlots.eventDate || new Date().toISOString(),
-          guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
-          deliveryAddress: updatedSlots.deliveryLocation || 'London',
-          dietarySplit: updatedSlots.dietaryPreference || 'Mixed',
-          status: 'Quoted',
-        });
+          const event = await airtableService.createEvent({
+            customerId: customer.id || state.phoneNumber,
+            eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
+            eventDate: updatedSlots.eventDate || new Date().toISOString(),
+            guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
+            deliveryAddress: updatedSlots.deliveryLocation || 'London',
+            dietarySplit: updatedSlots.dietaryPreference || 'Mixed',
+            status: 'Quoted',
+          });
 
-        await airtableService.createOrder({
-          customerId: customer.id || state.phoneNumber,
-          eventId: event.id || 'EVT-001',
-          orderStatus: 'Confirmed',
-          estimatedTotal: calculatedTotal || 250,
-          itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
-        });
-        logger.log(`✅ [AIRTABLE_SYNC] Synced booking to Airtable.`);
-      } catch (atErr: unknown) {
-        logger.warn(`Secondary Airtable sync skipped or failed: ${(atErr as Error).message}`);
+          await airtableService.createOrder({
+            customerId: customer.id || state.phoneNumber,
+            eventId: event.id || 'EVT-001',
+            orderStatus: 'Confirmed',
+            estimatedTotal: calculatedTotal || 250,
+            itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
+          });
+          logger.log(`✅ [AIRTABLE_SYNC] Synced booking to Airtable.`);
+        } catch (atErr: unknown) {
+          logger.warn(`Secondary Airtable sync skipped or failed: ${(atErr as Error).message}`);
+        }
       }
 
       replyText += '\n\n🎉 *Order Confirmed!* Your booking has been locked in our system. Our catering manager will contact you shortly to coordinate serving logistics.';
@@ -283,9 +565,18 @@ LATEST USER MESSAGE:
       buttons = [{ id: 'btn_support', title: '💬 Contact Team' }];
     }
 
-    // If Human handoff triggered
+    // If Human handoff triggered, record in Enterprise SQL Database
     if (requiresHandoff && !state.humanHandoffRequired) {
-      await airtableService.markHumanHandoffRequired(state.phoneNumber, handoffReason || 'Customer request');
+      if (databaseService) {
+        await databaseService.recordHumanHandoff(state.phoneNumber, handoffReason || 'Customer requested escalation');
+      }
+      if (airtableService) {
+        try {
+          await airtableService.markHumanHandoffRequired(state.phoneNumber, handoffReason || 'Customer requested escalation');
+        } catch {
+          // non-blocking
+        }
+      }
     }
 
     return {

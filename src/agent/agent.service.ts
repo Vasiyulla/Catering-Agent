@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
@@ -6,6 +6,8 @@ import { ChatOpenAI } from '@langchain/openai';
 import { MenuCacheService } from '../airtable/menu-cache.service.js';
 import { AirtableService } from '../airtable/airtable.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { BillingEngineService } from './billing/billing-engine.service.js';
+import { HostProtectionService } from './protection/host-protection.service.js';
 import { buildCateringGraph } from './graph/catering.graph.js';
 import { WhatsAppService } from '../whatsapp/whatsapp.service.js';
 
@@ -18,10 +20,13 @@ export class AgentService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly menuCacheService: MenuCacheService,
-    private readonly airtableService: AirtableService,
     private readonly databaseService: DatabaseService,
+    private readonly billingEngineService: BillingEngineService,
+    private readonly hostProtectionService: HostProtectionService,
     @Inject(forwardRef(() => WhatsAppService))
     private readonly whatsappService: WhatsAppService,
+    @Optional()
+    private readonly airtableService?: AirtableService,
   ) {}
 
   onModuleInit() {
@@ -31,6 +36,8 @@ export class AgentService implements OnModuleInit {
       this.menuCacheService,
       this.airtableService,
       this.databaseService,
+      this.billingEngineService,
+      this.hostProtectionService,
     );
     this.logger.log('LangGraph agent initialized with thread checkpointer.');
   }
@@ -101,11 +108,13 @@ export class AgentService implements OnModuleInit {
         messageText,
       });
 
-      // 2. Secondary viewer sync (Airtable, non-blocking)
-      try {
-        await this.airtableService.findOrCreateCustomer(senderName, phoneNumber);
-      } catch (err: unknown) {
-        this.logger.warn(`Could not sync customer to Airtable: ${(err as Error).message}`);
+      // 2. Optional secondary viewer sync (Airtable, non-blocking)
+      if (this.airtableService) {
+        try {
+          await this.airtableService.findOrCreateCustomer(senderName, phoneNumber);
+        } catch (err: unknown) {
+          this.logger.warn(`Secondary Airtable sync skipped: ${(err as Error).message}`);
+        }
       }
 
       const result = await this.graph.invoke(

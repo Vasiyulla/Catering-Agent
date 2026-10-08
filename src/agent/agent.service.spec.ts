@@ -5,6 +5,8 @@ import configuration from '../config/configuration.js';
 import { MenuCacheService } from '../airtable/menu-cache.service.js';
 import { AirtableService } from '../airtable/airtable.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { BillingEngineService } from './billing/billing-engine.service.js';
+import { HostProtectionService } from './protection/host-protection.service.js';
 import { WhatsAppDebounceService } from '../whatsapp/whatsapp-debounce.service.js';
 import { WhatsAppService } from '../whatsapp/whatsapp.service.js';
 import { AgentService } from './agent.service.js';
@@ -33,6 +35,8 @@ describe('Dil Se Catering Core Agentic System', () => {
         MenuCacheService,
         AirtableService,
         DatabaseService,
+        BillingEngineService,
+        HostProtectionService,
         WhatsAppDebounceService,
         {
           provide: WhatsAppService,
@@ -77,7 +81,68 @@ describe('Dil Se Catering Core Agentic System', () => {
       'Priya Sharma',
       'Hi! I need catering for 30 people on Saturday',
     );
-    // Verified that invocation executes without unhandled errors
     expect(true).toBe(true);
   }, 15000);
+
+  it('should activate Host-Protection Radar and never leak Bubble 1/Bubble 2 prefixes', async () => {
+    const mockWa = (agentService as any).whatsappService;
+    mockWa.sendSplitBubbles.mockClear();
+    mockWa.sendInteractiveButtons.mockClear();
+
+    await agentService.handleCustomerMessage(
+      '447987654321',
+      'Rajesh Patel',
+      'We have 35 people in Wembley HA9 and want 1 tray of biryani for our gathering',
+    );
+
+    // Verify WhatsApp was called
+    const splitCalls = mockWa.sendSplitBubbles.mock.calls;
+    const buttonCalls = mockWa.sendInteractiveButtons.mock.calls;
+    expect(splitCalls.length + buttonCalls.length).toBeGreaterThan(0);
+
+    const allSentBubbles: string[] = [];
+    splitCalls.forEach((call: any[]) => {
+      if (Array.isArray(call[1])) allSentBubbles.push(...call[1]);
+      else allSentBubbles.push(call[1]);
+    });
+    buttonCalls.forEach((call: any[]) => {
+      allSentBubbles.push(call[1]);
+    });
+
+    const combinedText = allSentBubbles.join('\n\n');
+
+    // 1. Host Protection Guarantee: Must flag food shortage risk for 35 people with only 1 tray
+    expect(combinedText.toLowerCase()).toMatch(/short|feed|only feed|extra tray|heads up/i);
+
+    // 2. Strict Clean Format: MUST NOT have "Bubble 1:" or "Bubble 2:" prefixes
+    expect(combinedText).not.toMatch(/^(?:bubble|message|part)\s*\d+\s*[:\-]/im);
+  }, 20000);
+
+  it('should protect mixed crowds with Stealth Meat-Eater advice', async () => {
+    const mockWa = (agentService as any).whatsappService;
+    mockWa.sendSplitBubbles.mockClear();
+    mockWa.sendInteractiveButtons.mockClear();
+
+    await agentService.handleCustomerMessage(
+      '447555123456',
+      'Ayesha Khan',
+      'Hi Kabir! We have 25 guests for an anniversary in Harrow. It is a mixed crowd with some veg and some non-veg.',
+    );
+
+    const splitCalls = mockWa.sendSplitBubbles.mock.calls;
+    const buttonCalls = mockWa.sendInteractiveButtons.mock.calls;
+    expect(splitCalls.length + buttonCalls.length).toBeGreaterThan(0);
+
+    const allSentBubbles: string[] = [];
+    splitCalls.forEach((call: any[]) => {
+      if (Array.isArray(call[1])) allSentBubbles.push(...call[1]);
+      else allSentBubbles.push(call[1]);
+    });
+    buttonCalls.forEach((call: any[]) => {
+      allSentBubbles.push(call[1]);
+    });
+
+    const combinedText = allSentBubbles.join('\n\n');
+    expect(combinedText).not.toMatch(/^(?:bubble|message|part)\s*\d+\s*[:\-]/im);
+  }, 20000);
 });
