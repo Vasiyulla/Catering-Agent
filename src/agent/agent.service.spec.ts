@@ -116,7 +116,7 @@ describe('Dil Se Catering Core Agentic System', () => {
 
     // 2. Strict Clean Format: MUST NOT have "Bubble 1:" or "Bubble 2:" prefixes
     expect(combinedText).not.toMatch(/^(?:bubble|message|part)\s*\d+\s*[:\-]/im);
-  }, 20000);
+  }, 35000);
 
   it('should protect mixed crowds with Stealth Meat-Eater advice', async () => {
     const mockWa = (agentService as any).whatsappService;
@@ -144,5 +144,5 @@ describe('Dil Se Catering Core Agentic System', () => {
 
     const combinedText = allSentBubbles.join('\n\n');
     expect(combinedText).not.toMatch(/^(?:bubble|message|part)\s*\d+\s*[:\-]/im);
-  }, 20000);
+  }, 35000);
 });

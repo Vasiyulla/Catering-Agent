@@ -16,8 +16,8 @@ async function bootstrap() {
   app.enableCors();
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  await app.listen(port);
-  logger.log(`❤️ Dil Se Catering AI Agent Backend running on port ${port}`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`❤️ Dil Se Catering AI Agent Backend running on port ${port} (0.0.0.0)`);
 }
 
 await bootstrap();

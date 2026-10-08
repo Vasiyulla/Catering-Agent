@@ -1,7 +1,6 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 export interface EnterpriseCustomer {
@@ -57,163 +56,142 @@ export interface EnterpriseHandoff {
   createdAt: Date;
 }
 
+interface StoredSnapshot {
+  customers: EnterpriseCustomer[];
+  events: EnterpriseEvent[];
+  orders: EnterpriseOrder[];
+  messages: EnterpriseMessageAudit[];
+  handoffs: EnterpriseHandoff[];
+}
+
 @Injectable()
-export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+export class DatabaseService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseService.name);
-  private db!: DatabaseSync;
+  private readonly storageFilePath = 'data/catering-store.json';
 
   // In-memory high-speed cache for sub-millisecond hot reads
   private readonly customers = new Map<string, EnterpriseCustomer>();
   private readonly events = new Map<string, EnterpriseEvent>();
   private readonly orders = new Map<string, EnterpriseOrder>();
   private readonly auditLog: EnterpriseMessageAudit[] = [];
+  private readonly handoffLog: EnterpriseHandoff[] = [];
 
   constructor(private readonly configService: ConfigService) {
-    this.initDatabase();
+    this.loadFromDisk();
   }
 
   onModuleInit() {
-    this.logger.log('✅ [ENTERPRISE_DB] Persistent SQL Database connected with ACID transactions.');
+    this.logger.log(`✅ [ENTERPRISE_DB] Initialized with ${this.customers.size} customers, ${this.orders.size} orders.`);
   }
 
-  onModuleDestroy() {
+  private loadFromDisk(): void {
+    if (process.env.NODE_ENV === 'test') return;
+
     try {
-      this.db.close();
-    } catch {
-      // ignore
+      if (existsSync(this.storageFilePath)) {
+        const raw = readFileSync(this.storageFilePath, 'utf-8');
+        const data: StoredSnapshot = JSON.parse(raw);
+
+        if (Array.isArray(data.customers)) {
+          data.customers.forEach((c) => {
+            this.customers.set(c.phoneNumber, {
+              ...c,
+              createdAt: new Date(c.createdAt),
+              updatedAt: new Date(c.updatedAt),
+            });
+          });
+        }
+
+        if (Array.isArray(data.events)) {
+          data.events.forEach((e) => {
+            this.events.set(e.id, {
+              ...e,
+              createdAt: new Date(e.createdAt),
+            });
+          });
+        }
+
+        if (Array.isArray(data.orders)) {
+          data.orders.forEach((o) => {
+            this.orders.set(o.id, {
+              ...o,
+              confirmedAt: o.confirmedAt ? new Date(o.confirmedAt) : undefined,
+              createdAt: new Date(o.createdAt),
+            });
+          });
+        }
+
+        if (Array.isArray(data.messages)) {
+          data.messages.forEach((m) => {
+            this.auditLog.push({
+              ...m,
+              createdAt: new Date(m.createdAt),
+            });
+          });
+        }
+
+        if (Array.isArray(data.handoffs)) {
+          data.handoffs.forEach((h) => {
+            this.handoffLog.push({
+              ...h,
+              createdAt: new Date(h.createdAt),
+            });
+          });
+        }
+
+        this.logger.log(`📦 Loaded persistent data from ${this.storageFilePath}`);
+      }
+    } catch (err: unknown) {
+      this.logger.warn(`Could not load snapshot from disk: ${(err as Error).message}`);
     }
   }
 
-  private initDatabase(): void {
-    const isTest = process.env.NODE_ENV === 'test';
-    const dbPath = isTest ? ':memory:' : 'data/catering.sqlite';
+  private saveToDisk(): void {
+    if (process.env.NODE_ENV === 'test') return;
 
-    if (!isTest) {
-      try {
-        mkdirSync(dirname(dbPath), { recursive: true });
-      } catch {
-        // Directory already exists or in memory
-      }
+    try {
+      mkdirSync(dirname(this.storageFilePath), { recursive: true });
+      const snapshot: StoredSnapshot = {
+        customers: Array.from(this.customers.values()),
+        events: Array.from(this.events.values()),
+        orders: Array.from(this.orders.values()),
+        messages: this.auditLog.slice(-1000), // Retain latest 1000 messages in file
+        handoffs: this.handoffLog,
+      };
+      writeFileSync(this.storageFilePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    } catch (err: unknown) {
+      this.logger.warn(`Could not persist snapshot to disk: ${(err as Error).message}`);
     }
-
-    this.db = new DatabaseSync(dbPath);
-
-    // Initialize Schema mirroring prisma/schema.prisma
-    this.db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA synchronous = NORMAL;
-
-      CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone_number TEXT UNIQUE NOT NULL,
-        postcode TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS events (
-        id TEXT PRIMARY KEY,
-        customer_id TEXT NOT NULL,
-        event_type TEXT,
-        event_date TEXT NOT NULL,
-        serving_time TEXT,
-        guest_count INTEGER NOT NULL,
-        delivery_address TEXT,
-        dietary_preference TEXT,
-        status TEXT NOT NULL DEFAULT 'QUOTED',
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        customer_id TEXT NOT NULL,
-        event_id TEXT,
-        order_mode TEXT NOT NULL,
-        selected_package_id TEXT,
-        total_amount REAL NOT NULL,
-        payment_status TEXT NOT NULL DEFAULT 'PENDING',
-        items_summary TEXT,
-        confirmed_at TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-        FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        customer_id TEXT,
-        phone_number TEXT NOT NULL,
-        direction TEXT NOT NULL,
-        message_text TEXT NOT NULL,
-        wamid TEXT,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS handoffs (
-        id TEXT PRIMARY KEY,
-        phone_number TEXT NOT NULL,
-        reason TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'PENDING',
-        created_at TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone_number);
-      CREATE INDEX IF NOT EXISTS idx_events_customer ON events(customer_id);
-      CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
-      CREATE INDEX IF NOT EXISTS idx_messages_phone ON messages(phone_number);
-    `);
   }
 
   /**
    * Finds or creates a customer by phone number atomically
    */
   public async findOrCreateCustomer(name: string, phoneNumber: string, postcode?: string): Promise<EnterpriseCustomer> {
-    const existingMemory = this.customers.get(phoneNumber);
-    if (existingMemory) {
-      if (name && name !== 'Customer' && existingMemory.name !== name) {
-        existingMemory.name = name;
-        existingMemory.updatedAt = new Date();
-        this.db.prepare('UPDATE customers SET name = ?, updated_at = ? WHERE phone_number = ?')
-          .run(name, existingMemory.updatedAt.toISOString(), phoneNumber);
+    const existing = this.customers.get(phoneNumber);
+    if (existing) {
+      let modified = false;
+      if (name && name !== 'Customer' && existing.name !== name) {
+        existing.name = name;
+        existing.updatedAt = new Date();
+        modified = true;
       }
-      if (postcode && !existingMemory.postcode) {
-        existingMemory.postcode = postcode;
-        existingMemory.updatedAt = new Date();
-        this.db.prepare('UPDATE customers SET postcode = ?, updated_at = ? WHERE phone_number = ?')
-          .run(postcode, existingMemory.updatedAt.toISOString(), phoneNumber);
+      if (postcode && !existing.postcode) {
+        existing.postcode = postcode;
+        existing.updatedAt = new Date();
+        modified = true;
       }
-      return existingMemory;
+      if (modified) {
+        this.saveToDisk();
+      }
+      return existing;
     }
 
-    // Query SQL
-    const row = this.db.prepare('SELECT * FROM customers WHERE phone_number = ?').get(phoneNumber) as any;
-    if (row) {
-      const customer: EnterpriseCustomer = {
-        id: row.id,
-        name: row.name,
-        phoneNumber: row.phone_number,
-        postcode: row.postcode || undefined,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      };
-      this.customers.set(phoneNumber, customer);
-      return customer;
-    }
-
-    // Insert new customer
     const newId = `CUS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const now = new Date();
-    const cleanName = name || 'Valued Customer';
-
-    this.db.prepare(
-      'INSERT INTO customers (id, name, phone_number, postcode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(newId, cleanName, phoneNumber, postcode || null, now.toISOString(), now.toISOString());
-
     const created: EnterpriseCustomer = {
       id: newId,
-      name: cleanName,
+      name: name || 'Valued Customer',
       phoneNumber,
       postcode,
       createdAt: now,
@@ -221,6 +199,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     };
 
     this.customers.set(phoneNumber, created);
+    this.saveToDisk();
     this.logger.log(`[DB] Created customer: ${created.name} (${created.id}) for ${phoneNumber}`);
     return created;
   }
@@ -229,23 +208,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
    * Retrieves customer by phone number
    */
   public async getCustomerByPhone(phoneNumber: string): Promise<EnterpriseCustomer | null> {
-    if (this.customers.has(phoneNumber)) {
-      return this.customers.get(phoneNumber)!;
-    }
-    const row = this.db.prepare('SELECT * FROM customers WHERE phone_number = ?').get(phoneNumber) as any;
-    if (row) {
-      const customer: EnterpriseCustomer = {
-        id: row.id,
-        name: row.name,
-        phoneNumber: row.phone_number,
-        postcode: row.postcode || undefined,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      };
-      this.customers.set(phoneNumber, customer);
-      return customer;
-    }
-    return null;
+    return this.customers.get(phoneNumber) || null;
   }
 
   /**
@@ -263,39 +226,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }): Promise<EnterpriseEvent> {
     const id = `EVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const now = new Date();
-    const eventType = data.eventType || 'Buffet Feast';
-    const status = data.status || 'QUOTED';
-
-    this.db.prepare(`
-      INSERT INTO events (id, customer_id, event_type, event_date, serving_time, guest_count, delivery_address, dietary_preference, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      data.customerId,
-      eventType,
-      data.eventDate,
-      data.servingTime || null,
-      data.guestCount,
-      data.deliveryAddress || null,
-      data.dietaryPreference || null,
-      status,
-      now.toISOString()
-    );
-
     const event: EnterpriseEvent = {
       id,
       customerId: data.customerId,
-      eventType,
+      eventType: data.eventType || 'Buffet Feast',
       eventDate: data.eventDate,
       servingTime: data.servingTime,
       guestCount: data.guestCount,
       deliveryAddress: data.deliveryAddress,
       dietaryPreference: data.dietaryPreference,
-      status,
+      status: data.status || 'QUOTED',
       createdAt: now,
     };
 
     this.events.set(id, event);
+    this.saveToDisk();
     this.logger.log(`[DB] Recorded event ${id} for customer ${data.customerId} on ${data.eventDate}`);
     return event;
   }
@@ -313,29 +258,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }): Promise<EnterpriseOrder> {
     const id = `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const now = new Date();
-
-    this.db.prepare(`
-      INSERT INTO orders (id, customer_id, event_id, order_mode, selected_package_id, total_amount, payment_status, items_summary, confirmed_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)
-    `).run(
-      id,
-      data.customerId,
-      data.eventId || null,
-      data.orderMode,
-      data.selectedPackageId || null,
-      data.totalAmount,
-      data.itemsSummary || null,
-      now.toISOString(),
-      now.toISOString()
-    );
-
-    if (data.eventId) {
-      this.db.prepare("UPDATE events SET status = 'CONFIRMED' WHERE id = ?").run(data.eventId);
-      if (this.events.has(data.eventId)) {
-        this.events.get(data.eventId)!.status = 'CONFIRMED';
-      }
-    }
-
     const order: EnterpriseOrder = {
       id,
       customerId: data.customerId,
@@ -350,6 +272,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     };
 
     this.orders.set(id, order);
+
+    if (data.eventId && this.events.has(data.eventId)) {
+      this.events.get(data.eventId)!.status = 'CONFIRMED';
+    }
+
+    this.saveToDisk();
     this.logger.log(`[DB] Created confirmed order ${id} (£${data.totalAmount}) for customer ${data.customerId}`);
     return order;
   }
@@ -365,58 +293,44 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     wamid?: string;
   }): Promise<void> {
     const id = `MSG-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    const now = new Date();
-
-    this.db.prepare(`
-      INSERT INTO messages (id, customer_id, phone_number, direction, message_text, wamid, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      audit.customerId || null,
-      audit.phoneNumber,
-      audit.direction,
-      audit.messageText,
-      audit.wamid || null,
-      now.toISOString()
-    );
-
     const entry: EnterpriseMessageAudit = {
       id,
       ...audit,
-      createdAt: now,
+      createdAt: new Date(),
     };
+
     this.auditLog.push(entry);
+    this.saveToDisk();
   }
 
   /**
-   * Records Human Handoff escalation in SQL
+   * Records Human Handoff escalation
    */
   public async recordHumanHandoff(phoneNumber: string, reason: string): Promise<void> {
     const id = `HND-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    const now = new Date();
+    const entry: EnterpriseHandoff = {
+      id,
+      phoneNumber,
+      reason,
+      status: 'PENDING',
+      createdAt: new Date(),
+    };
 
-    this.db.prepare(`
-      INSERT INTO handoffs (id, phone_number, reason, status, created_at)
-      VALUES (?, ?, ?, 'PENDING', ?)
-    `).run(id, phoneNumber, reason, now.toISOString());
-
+    this.handoffLog.push(entry);
+    this.saveToDisk();
     this.logger.warn(`🚨 [HUMAN_HANDOFF_RECORDED] Phone: ${phoneNumber} | Reason: ${reason}`);
   }
 
   /**
-   * Returns current database summary counts directly from SQL
+   * Returns current database summary counts
    */
   public getStats() {
-    const custCount = (this.db.prepare('SELECT COUNT(*) as count FROM customers').get() as any)?.count || 0;
-    const evtCount = (this.db.prepare('SELECT COUNT(*) as count FROM events').get() as any)?.count || 0;
-    const ordCount = (this.db.prepare('SELECT COUNT(*) as count FROM orders').get() as any)?.count || 0;
-    const msgCount = (this.db.prepare('SELECT COUNT(*) as count FROM messages').get() as any)?.count || 0;
-
     return {
-      totalCustomers: custCount,
-      totalEvents: evtCount,
-      totalOrders: ordCount,
-      totalAuditMessages: msgCount,
+      totalCustomers: this.customers.size,
+      totalEvents: this.events.size,
+      totalOrders: this.orders.size,
+      totalAuditMessages: this.auditLog.length,
+      totalHandoffs: this.handoffLog.length,
     };
   }
 }
