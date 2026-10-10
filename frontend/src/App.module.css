@@ -1,0 +1,128 @@
+.appLayout {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--color-canvas);
+  overflow: hidden;
+}
+
+.mainViewport {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.contentContainer {
+  padding: 1.5rem 1.75rem 3.5rem;
+  max-width: 1800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.handoffAlertBanner {
+  background: #ffffff;
+  border: 1px solid var(--color-saffron-border);
+  border-left: 4px solid var(--color-saffron);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-xs);
+}
+
+.alertContent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 0.88rem;
+}
+
+.alertIcon {
+  color: var(--color-saffron);
+  flex-shrink: 0;
+}
+
+.resolveBtn {
+  background: var(--color-saffron);
+  color: #ffffff;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast);
+}
+
+.resolveBtn:hover {
+  background: var(--color-saffron-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.footerBar {
+  padding: 0.85rem 1.75rem;
+  background: #ffffff;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: auto;
+}
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+.goldStar {
+  color: var(--color-gold);
+}
+
+@media (max-width: 992px) {
+  .contentContainer {
+    padding: 1.25rem 1.25rem 3.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .contentContainer {
+    padding: 0.85rem 0.75rem 3rem;
+  }
+
+  .handoffAlertBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .resolveBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .footerBar {
+    flex-direction: column;
+    gap: 0.45rem;
+    text-align: center;
+    font-size: 10px;
+    padding: 0.85rem;
+  }
+}

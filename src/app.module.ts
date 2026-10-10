@@ -5,6 +5,7 @@ import { AirtableModule } from './airtable/airtable.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { WhatsAppModule } from './whatsapp/whatsapp.module.js';
 import { AgentModule } from './agent/agent.module.js';
+import { ApiModule } from './api/api.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -18,6 +19,7 @@ import { AppService } from './app.service.js';
     AirtableModule,
     WhatsAppModule,
     AgentModule,
+    ApiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

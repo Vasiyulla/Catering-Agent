@@ -322,14 +322,78 @@ export class DatabaseService implements OnModuleInit {
   }
 
   /**
+   * Returns all recorded orders joined with customer and event details
+   */
+  public getAllOrders(): Array<EnterpriseOrder & { customer?: EnterpriseCustomer; event?: EnterpriseEvent }> {
+    const list: Array<EnterpriseOrder & { customer?: EnterpriseCustomer; event?: EnterpriseEvent }> = [];
+    for (const order of this.orders.values()) {
+      const customer = Array.from(this.customers.values()).find((c) => c.id === order.customerId);
+      const event = order.eventId ? this.events.get(order.eventId) : undefined;
+      list.push({ ...order, customer, event });
+    }
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  /**
+   * Updates an order's associated event status
+   */
+  public updateOrderStatus(orderId: string, status: string): boolean {
+    const order = this.orders.get(orderId);
+    if (!order) return false;
+    if (order.eventId && this.events.has(order.eventId)) {
+      this.events.get(order.eventId)!.status = status as any;
+    }
+    this.saveToDisk();
+    return true;
+  }
+
+  /**
+   * Returns all human handoffs
+   */
+  public getAllHandoffs(): EnterpriseHandoff[] {
+    return [...this.handoffLog].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  /**
+   * Marks a pending human handoff as resolved
+   */
+  public resolveHandoff(phoneNumber: string): boolean {
+    let resolved = false;
+    for (const h of this.handoffLog) {
+      if (h.phoneNumber === phoneNumber && h.status === 'PENDING') {
+        h.status = 'RESOLVED';
+        resolved = true;
+      }
+    }
+    if (resolved) this.saveToDisk();
+    return resolved;
+  }
+
+  /**
+   * Returns audit messages for a given phone number
+   */
+  public getMessagesForPhone(phoneNumber: string): EnterpriseMessageAudit[] {
+    return this.auditLog
+      .filter((m) => m.phoneNumber === phoneNumber)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  /**
    * Returns current database summary counts
    */
   public getStats() {
+    let totalRevenue = 0;
+    for (const o of this.orders.values()) {
+      totalRevenue += o.totalAmount || 0;
+    }
+
     return {
       totalCustomers: this.customers.size,
       totalEvents: this.events.size,
       totalOrders: this.orders.size,
+      totalRevenue,
       totalAuditMessages: this.auditLog.length,
+      pendingHandoffs: this.handoffLog.filter((h) => h.status === 'PENDING').length,
       totalHandoffs: this.handoffLog.length,
     };
   }

@@ -1,0 +1,204 @@
+.statsBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.statCard:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statLabel {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.statIconWrap {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconGold {
+  color: var(--color-gold-accent);
+}
+
+.iconEmerald {
+  color: var(--color-emerald-text);
+}
+
+.iconSaffron {
+  color: var(--color-saffron-text);
+}
+
+.iconMuted {
+  color: var(--color-text-muted);
+}
+
+.statValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.currencySymbol {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.unitText {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-left: 0.2rem;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 11px;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 0.5rem;
+}
+
+.trendTag {
+  background: var(--color-emerald-light);
+  color: var(--color-emerald-text);
+  border: 1px solid var(--color-emerald-border);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.neutralTag {
+  background: var(--color-canvas-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.saffronTag {
+  background: var(--color-saffron-light);
+  color: var(--color-saffron-text);
+  border: 1px solid var(--color-saffron-border);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.subText {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Alert State for Escalations */
+.alertCard {
+  border-color: var(--color-danger-border);
+  background: #ffffff;
+}
+
+.alertCard:hover {
+  border-color: var(--color-danger);
+}
+
+.alertLabel {
+  color: var(--color-danger-text);
+}
+
+.alertIconWrap {
+  background: var(--color-danger-light);
+  border-color: var(--color-danger-border);
+}
+
+.iconAlert {
+  color: var(--color-danger);
+}
+
+.alertValue {
+  color: var(--color-danger-text);
+}
+
+.urgentTag {
+  background: var(--color-danger-light);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 1100px) {
+  .statsBar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .statsBar {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}

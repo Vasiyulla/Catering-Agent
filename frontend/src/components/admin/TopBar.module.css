@@ -1,0 +1,251 @@
+.topBar {
+  height: 56px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  box-shadow: var(--shadow-xs);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.menuToggleBtn {
+  display: none;
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  padding: 0.4rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.menuToggleBtn:hover {
+  background: #ffffff;
+  border-color: var(--color-border-hover);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.crumbRoot {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.crumbDivider {
+  color: var(--color-text-dim);
+}
+
+.crumbActive {
+  color: var(--color-text-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 2rem 0.4rem 2.2rem;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--color-text-primary);
+  width: 240px;
+  transition: all var(--transition-fast);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-emerald);
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(12, 43, 34, 0.1);
+  width: 280px;
+}
+
+.searchHotkey {
+  position: absolute;
+  right: 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0.1rem 0.35rem;
+  pointer-events: none;
+}
+
+.filterChips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filterChips::-webkit-scrollbar {
+  display: none;
+}
+
+.filterChip {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  background: var(--color-canvas-subtle);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.filterChipActive {
+  background: var(--color-emerald);
+  border-color: var(--color-emerald);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.clockBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.clockIcon {
+  color: var(--color-text-muted);
+}
+
+.syncBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.32rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.syncBtn:hover {
+  background: var(--color-canvas-subtle);
+  border-color: var(--color-border-hover);
+}
+
+.syncIcon {
+  transition: transform var(--transition-normal);
+  color: var(--color-text-muted);
+}
+
+.syncSpinning .syncIcon {
+  transform: rotate(180deg);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) {
+  .searchInput {
+    width: 170px;
+  }
+  .searchInput:focus {
+    width: 210px;
+  }
+  .filterChips {
+    display: none;
+  }
+}
+
+@media (max-width: 992px) {
+  .topBar {
+    padding: 0 1rem;
+  }
+  .menuToggleBtn {
+    display: flex;
+  }
+  .crumbRoot {
+    display: none;
+  }
+  .crumbDivider {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .searchWrapper {
+    display: none;
+  }
+  .clockBadge {
+    display: none;
+  }
+  .syncBtnText {
+    display: none;
+  }
+  .syncBtn {
+    padding: 0.35rem 0.5rem;
+  }
+}
