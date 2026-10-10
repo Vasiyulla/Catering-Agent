@@ -98,6 +98,63 @@ export class ApiController {
   }
 
   /**
+   * POST /api/orders
+   * Direct order creation with customer and event relational binding
+   */
+  @Post('orders')
+  async createOrder(@Body() body: any) {
+    const customer = await this.databaseService.findOrCreateCustomer(
+      body.customerName || 'Valued Host',
+      body.phoneNumber || '+44 7000 000000',
+      body.postcode || 'London',
+    );
+
+    const event = await this.databaseService.createEvent({
+      customerId: customer.id,
+      eventType: body.eventType || 'Royal Celebration Feast',
+      eventDate: body.eventDate || new Date().toISOString().split('T')[0],
+      servingTime: body.servingTime || '18:30 BST',
+      guestCount: body.guestCount || 50,
+      deliveryAddress: body.deliveryAddress || body.postcode || 'London Venue',
+      dietaryPreference: body.dietaryPreference || 'Mixed 60/40 (Halal Meat + Veg Cushion)',
+      status: body.status || 'CONFIRMED',
+    });
+
+    const order = await this.databaseService.createOrder({
+      customerId: customer.id,
+      eventId: event.id,
+      orderMode: body.orderMode || 'FEAST_PACKAGE',
+      selectedPackageId: body.packageId || 'PKG-GOLD',
+      totalAmount: body.totalAmount || 900.0,
+      itemsSummary: body.itemsSummary || 'Dil Se Royal Celebration Feast',
+    });
+
+    return {
+      success: true,
+      order: {
+        ...order,
+        customer,
+        event,
+      },
+    };
+  }
+
+  /**
+   * POST /api/seed
+   * Resets / populates canonical enterprise orders, customer dossiers, messages, and handoffs
+   */
+  @Post('seed')
+  seedDatabase(@Query('force') force?: string) {
+    const isForced = force === 'true' || force === '1';
+    const seeded = this.databaseService.seedInitialData(isForced);
+    return {
+      success: true,
+      seeded,
+      stats: this.databaseService.getStats(),
+    };
+  }
+
+  /**
    * PATCH /api/orders/:id/status
    * Updates an order's status (e.g., CONFIRMED -> KITCHEN_PREP -> DISPATCHED)
    */

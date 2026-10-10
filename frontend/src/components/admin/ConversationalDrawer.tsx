@@ -43,43 +43,11 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
     if (!order) return;
     const customer = order.customer;
     if (!customer?.phoneNumber) return;
-    const guestCount = order.event?.guestCount || 80;
 
     let isCurrent = true;
     api.getMessages(customer.phoneNumber).then((res) => {
-      if (isCurrent && res.messages.length > 0) {
-        setMessages(res.messages);
-      } else if (isCurrent) {
-        setMessages([
-          {
-            id: 'm1',
-            phoneNumber: customer.phoneNumber,
-            direction: 'INBOUND',
-            messageText: `Namaste! We are arranging catering for ${guestCount} guests in ${order.event?.deliveryAddress || customer.postcode || 'London'}. Could you share your royal banquet packages?`,
-            createdAt: '14:20',
-          },
-          {
-            id: 'm2',
-            phoneNumber: customer.phoneNumber,
-            direction: 'OUTBOUND',
-            messageText: `Namaste ${customer.name || 'Valued Host'}! Delighted to connect with you. For a banquet of ${guestCount} guests, our Dil Se Classic Feast (£14.50/pp) is our signature spread. Includes starters, butter chicken, kadhai paneer, dal makhani, dum biryani, fresh naan and warm gulab jamun with luxury chafing warmers included.`,
-            createdAt: '14:21',
-          },
-          {
-            id: 'm3',
-            phoneNumber: customer.phoneNumber,
-            direction: 'INBOUND',
-            messageText: `That sounds splendid! We have a mixed gathering of vegetarians and meat lovers. Can you guarantee the paneer and veg dishes won't run short?`,
-            createdAt: '14:22',
-          },
-          {
-            id: 'm4',
-            phoneNumber: customer.phoneNumber,
-            direction: 'OUTBOUND',
-            messageText: `A golden rule from our banquet experience: non-vegetarian guests invariably love the Shahi Paneer as well! We intentionally build in a generous 40% vegetarian buffer so your vegetarian family members enjoy abundant feast platters throughout the evening.`,
-            createdAt: '14:23',
-          },
-        ]);
+      if (isCurrent) {
+        setMessages(res.messages || []);
       }
     });
 
@@ -209,27 +177,38 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
             </div>
 
             <div className={styles.messagesList}>
-              {messages.map((m) => {
-                const isInbound = m.direction === 'INBOUND';
-                return (
-                  <div
-                    key={m.id}
-                    className={`${styles.msgRow} ${
-                      isInbound ? styles.msgInbound : styles.msgOutbound
-                    }`}
-                  >
-                    <div className={styles.msgBubble}>
-                      <div className={styles.msgText}>{m.messageText}</div>
-                      <div className={styles.msgMeta}>
-                        <span className={styles.msgTime}>{m.createdAt}</span>
-                        {!isInbound && (
-                          <CheckCheck size={12} className={styles.readTicks} />
-                        )}
+              {messages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 20px', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 500, color: '#475569' }}>
+                    No recorded WhatsApp messages for this host yet.
+                  </p>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    Type a message below to contact host directly, or incoming messages will appear here in real-time.
+                  </p>
+                </div>
+              ) : (
+                messages.map((m) => {
+                  const isInbound = m.direction === 'INBOUND';
+                  return (
+                    <div
+                      key={m.id}
+                      className={`${styles.msgRow} ${
+                        isInbound ? styles.msgInbound : styles.msgOutbound
+                      }`}
+                    >
+                      <div className={styles.msgBubble}>
+                        <div className={styles.msgText}>{m.messageText}</div>
+                        <div className={styles.msgMeta}>
+                          <span className={styles.msgTime}>{m.createdAt}</span>
+                          {!isInbound && (
+                            <CheckCheck size={12} className={styles.readTicks} />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             {/* Quick Action Triggers */}
@@ -516,7 +495,7 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
                           className={`${styles.stagePill} ${
                             currentStatus === st ? styles.stagePillActive : ''
                           }`}
-                          onClick={() => onStatusChange(order.id, st)}
+                          onClick={() => onStatusChange?.(order.id, st)}
                         >
                           {st.replace('_', ' ')}
                         </button>

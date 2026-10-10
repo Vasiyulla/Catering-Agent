@@ -58,7 +58,7 @@ export class AgentService implements OnModuleInit {
         configuration: {
           baseURL: 'https://openrouter.ai/api/v1',
           defaultHeaders: {
-            'HTTP-Referer': 'https://catering-agent.onrender.com',
+            'HTTP-Referer': process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://openrouter.ai',
             'X-Title': 'Dil Se Catering Agent',
           },
         },

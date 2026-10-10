@@ -1,20 +1,32 @@
 import React from 'react';
 import { TrendingUp, Users, Flame, ShieldAlert, Sparkles } from 'lucide-react';
-import { DashboardStats } from '../../types/index.ts';
+import { EnterpriseOrder, DashboardStats } from '../../types/index.ts';
 import styles from './StatsBar.module.css';
 
 interface StatsBarProps {
   stats: DashboardStats;
+  orders?: EnterpriseOrder[];
 }
 
-export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
-  const revenueDisplay = (stats.totalRevenue && stats.totalRevenue > 0)
-    ? stats.totalRevenue
-    : 18450;
+export const StatsBar: React.FC<StatsBarProps> = ({ stats, orders = [] }) => {
+  const calculatedRevenue = orders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const revenueDisplay = stats.totalRevenue > 0 ? stats.totalRevenue : calculatedRevenue;
 
-  const totalGuests = 540;
-  const activeBatches = 14;
-  const escalations = stats.pendingHandoffs || 1;
+  const totalGuests = orders.reduce((acc, o) => acc + (o.event?.guestCount || 0), 0);
+  const activeBatches = orders.filter(
+    (o) => o.event?.status === 'CONFIRMED' || o.event?.status === 'IN_PREP'
+  ).length;
+  const escalations = stats.pendingHandoffs ?? 0;
+
+  const feastCount = orders.filter((o) => o.orderMode === 'FEAST_PACKAGE').length;
+  const trayCount = orders.filter((o) => o.orderMode === 'A_LA_CARTE_TRAYS').length;
+
+  const halalGuests = orders
+    .filter((o) => (o.event?.dietaryPreference || '').toLowerCase().includes('halal'))
+    .reduce((acc, o) => acc + (o.event?.guestCount || 0), 0);
+  const vegGuests = orders
+    .filter((o) => (o.event?.dietaryPreference || '').toLowerCase().includes('veg'))
+    .reduce((acc, o) => acc + (o.event?.guestCount || 0), 0);
 
   return (
     <div className={styles.statsBar}>
@@ -34,9 +46,11 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
         </div>
         <div className={styles.cardFooter}>
           <span className={styles.trendTag}>
-            <Sparkles size={11} /> +24% vs last week
+            <Sparkles size={11} /> Live Pipeline
           </span>
-          <span className={styles.subText}>4 Grand Receptions • 8 Tray Runs</span>
+          <span className={styles.subText}>
+            {feastCount} Feast Package{feastCount === 1 ? '' : 's'} • {trayCount} Tray Run{trayCount === 1 ? '' : 's'}
+          </span>
         </div>
       </div>
 
@@ -54,7 +68,9 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
         </div>
         <div className={styles.cardFooter}>
           <span className={styles.neutralTag}>London Venues</span>
-          <span className={styles.subText}>320 Halal Meat / 220 Pure-Veg</span>
+          <span className={styles.subText}>
+            {halalGuests} Halal • {vegGuests} Pure-Veg
+          </span>
         </div>
       </div>
 
@@ -68,11 +84,13 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
         </div>
         <div className={styles.statValueRow}>
           <span className={styles.statValue}>{activeBatches}</span>
-          <span className={styles.unitText}>Handis Active</span>
+          <span className={styles.unitText}>Batches Queued</span>
         </div>
         <div className={styles.cardFooter}>
-          <span className={styles.saffronTag}>Full Fire Shift</span>
-          <span className={styles.subText}>Biryani Dum Handis & Tandoor Live</span>
+          <span className={styles.saffronTag}>{activeBatches > 0 ? 'Active Shift' : 'Idle Shift'}</span>
+          <span className={styles.subText}>
+            {activeBatches > 0 ? `${activeBatches} handis cooking` : 'Awaiting next batch'}
+          </span>
         </div>
       </div>
 

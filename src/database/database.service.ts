@@ -22,7 +22,7 @@ export interface EnterpriseEvent {
   guestCount: number;
   deliveryAddress?: string;
   dietaryPreference?: string;
-  status: 'QUOTED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  status: 'QUOTED' | 'CONFIRMED' | 'IN_PREP' | 'DISPATCHED' | 'COMPLETED' | 'CANCELLED';
   createdAt: Date;
 }
 
@@ -86,6 +86,9 @@ export class DatabaseService implements OnModuleInit {
   }
 
   onModuleInit() {
+    if (this.orders.size === 0 && process.env.NODE_ENV !== 'test') {
+      this.seedInitialData(false);
+    }
     this.logger.log(`✅ [ENTERPRISE_DB] Initialized with ${this.customers.size} customers, ${this.orders.size} orders.`);
   }
 
@@ -227,7 +230,7 @@ export class DatabaseService implements OnModuleInit {
     guestCount: number;
     deliveryAddress?: string;
     dietaryPreference?: string;
-    status?: 'QUOTED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+    status?: 'QUOTED' | 'CONFIRMED' | 'IN_PREP' | 'DISPATCHED' | 'COMPLETED' | 'CANCELLED';
   }): Promise<EnterpriseEvent> {
     const id = `EVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const now = new Date();
@@ -408,5 +411,243 @@ export class DatabaseService implements OnModuleInit {
       pendingHandoffs: this.handoffLog.filter((h) => h.status === 'PENDING').length,
       totalHandoffs: this.handoffLog.length,
     };
+  }
+
+  /**
+   * Seeds realistic enterprise orders, events, messages, and handoffs
+   */
+  public seedInitialData(force = false): boolean {
+    if (!force && this.orders.size > 0) return false;
+
+    if (force) {
+      this.customers.clear();
+      this.events.clear();
+      this.orders.clear();
+      this.auditLog.length = 0;
+      this.handoffLog.length = 0;
+    }
+
+    const now = new Date();
+
+    // 1. Priya & Vikram Sharma - CONFIRMED
+    const cus1: EnterpriseCustomer = {
+      id: 'CUS-101',
+      name: 'Priya & Vikram Sharma',
+      phoneNumber: '+44 7123 456789',
+      postcode: 'HA9 9AA (Wembley)',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const evt1: EnterpriseEvent = {
+      id: 'EVT-101',
+      customerId: 'CUS-101',
+      eventType: 'Royal Shaadi Reception',
+      eventDate: '2026-10-15',
+      servingTime: '13:30 BST',
+      guestCount: 80,
+      deliveryAddress: 'Wembley Grand Banqueting Hall, HA9',
+      dietaryPreference: 'Mixed 60/40 (Halal Meat + Veg Cushion)',
+      status: 'CONFIRMED',
+      createdAt: now,
+    };
+    const ord1: EnterpriseOrder = {
+      id: 'ORD-ROYAL-101',
+      customerId: 'CUS-101',
+      eventId: 'EVT-101',
+      orderMode: 'FEAST_PACKAGE',
+      selectedPackageId: 'PKG-GOLD',
+      totalAmount: 1440.0,
+      paymentStatus: 'PAID',
+      itemsSummary: 'Dil Se Royal Celebration Feast (80 Covers)',
+      confirmedAt: now,
+      createdAt: now,
+    };
+
+    // 2. Rajesh & Suman Patel - QUOTED
+    const cus2: EnterpriseCustomer = {
+      id: 'CUS-202',
+      name: 'Rajesh & Suman Patel',
+      phoneNumber: '+44 7987 654321',
+      postcode: 'SL1 2DX (Slough)',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const evt2: EnterpriseEvent = {
+      id: 'EVT-202',
+      customerId: 'CUS-202',
+      eventType: 'Home Puja & Gathering',
+      eventDate: '2026-10-12',
+      servingTime: '18:30 BST',
+      guestCount: 40,
+      deliveryAddress: 'Upton Court Road, Slough SL1',
+      dietaryPreference: 'Strict Pure Vegetarian (Jain prep)',
+      status: 'QUOTED',
+      createdAt: now,
+    };
+    const ord2: EnterpriseOrder = {
+      id: 'ORD-TRAY-202',
+      customerId: 'CUS-202',
+      eventId: 'EVT-202',
+      orderMode: 'A_LA_CARTE_TRAYS',
+      totalAmount: 485.0,
+      paymentStatus: 'PENDING',
+      itemsSummary: '3x Awadhi Biryani Trays, 2x Butter Chicken, 2x Shahi Paneer',
+      createdAt: now,
+    };
+
+    // 3. Ayesha & Tariq Khan - IN_PREP
+    const cus3: EnterpriseCustomer = {
+      id: 'CUS-303',
+      name: 'Ayesha & Tariq Khan',
+      phoneNumber: '+44 7555 123456',
+      postcode: 'UB1 3HE (Southall)',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const evt3: EnterpriseEvent = {
+      id: 'EVT-303',
+      customerId: 'CUS-303',
+      eventType: 'Walima Banquet Gathering',
+      eventDate: '2026-10-14',
+      servingTime: '19:00 BST',
+      guestCount: 60,
+      deliveryAddress: 'The Broadway Banquet Suite, UB1',
+      dietaryPreference: '100% British Halal Certified',
+      status: 'IN_PREP',
+      createdAt: now,
+    };
+    const ord3: EnterpriseOrder = {
+      id: 'ORD-ROYAL-303',
+      customerId: 'CUS-303',
+      eventId: 'EVT-303',
+      orderMode: 'FEAST_PACKAGE',
+      selectedPackageId: 'PKG-SILVER',
+      totalAmount: 1160.0,
+      paymentStatus: 'PAID',
+      itemsSummary: 'Dil Se Classic Feast (60 Covers)',
+      confirmedAt: now,
+      createdAt: now,
+    };
+
+    // 4. Arjun & Meera Singhania - DISPATCHED
+    const cus4: EnterpriseCustomer = {
+      id: 'CUS-404',
+      name: 'Arjun & Meera Singhania',
+      phoneNumber: '+44 7888 999000',
+      postcode: 'TW7 4NP (Isleworth)',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const evt4: EnterpriseEvent = {
+      id: 'EVT-404',
+      customerId: 'CUS-404',
+      eventType: 'Corporate Diwali Gala',
+      eventDate: '2026-10-18',
+      servingTime: '19:30 BST',
+      guestCount: 160,
+      deliveryAddress: 'Osterley Park Pavilion, TW7',
+      dietaryPreference: 'Mixed 60/40 (Halal Meat + Veg Cushion)',
+      status: 'DISPATCHED',
+      createdAt: now,
+    };
+    const ord4: EnterpriseOrder = {
+      id: 'ORD-ROYAL-404',
+      customerId: 'CUS-404',
+      eventId: 'EVT-404',
+      orderMode: 'FEAST_PACKAGE',
+      selectedPackageId: 'PKG-GOLD',
+      totalAmount: 2880.0,
+      paymentStatus: 'PAID',
+      itemsSummary: 'Dil Se Royal Celebration Feast (160 Covers)',
+      confirmedAt: now,
+      createdAt: now,
+    };
+
+    // 5. Lord & Lady Mountjoy - COMPLETED
+    const cus5: EnterpriseCustomer = {
+      id: 'CUS-505',
+      name: 'Lord & Lady Mountjoy / Gupta Corp',
+      phoneNumber: '+44 7444 332211',
+      postcode: 'W1K 7TN (Mayfair)',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const evt5: EnterpriseEvent = {
+      id: 'EVT-505',
+      customerId: 'CUS-505',
+      eventType: 'Mayfair Charity Gala Feast',
+      eventDate: '2026-10-09',
+      servingTime: '20:00 BST',
+      guestCount: 200,
+      deliveryAddress: 'The Grosvenor House Ballroom, W1K',
+      dietaryPreference: 'Gourmet Mughlai • Nut-Free Audited',
+      status: 'COMPLETED',
+      createdAt: now,
+    };
+    const ord5: EnterpriseOrder = {
+      id: 'ORD-ROYAL-505',
+      customerId: 'CUS-505',
+      eventId: 'EVT-505',
+      orderMode: 'FEAST_PACKAGE',
+      selectedPackageId: 'PKG-GOLD',
+      totalAmount: 3600.0,
+      paymentStatus: 'PAID',
+      itemsSummary: 'Dil Se Grand Banquet (200 Covers)',
+      confirmedAt: now,
+      createdAt: now,
+    };
+
+    [cus1, cus2, cus3, cus4, cus5].forEach((c) => this.customers.set(c.phoneNumber, c));
+    [evt1, evt2, evt3, evt4, evt5].forEach((e) => this.events.set(e.id, e));
+    [ord1, ord2, ord3, ord4, ord5].forEach((o) => this.orders.set(o.id, o));
+
+    // Seed realistic audit messages for customer 1
+    this.auditLog.push(
+      {
+        id: 'MSG-INIT-1',
+        customerId: 'CUS-101',
+        phoneNumber: '+44 7123 456789',
+        direction: 'INBOUND',
+        messageText: 'Namaste! We are arranging catering for 80 guests in Wembley Grand Banqueting Hall. Could you share your royal banquet packages?',
+        createdAt: new Date(Date.now() - 3600000 * 2),
+      },
+      {
+        id: 'MSG-INIT-2',
+        customerId: 'CUS-101',
+        phoneNumber: '+44 7123 456789',
+        direction: 'OUTBOUND',
+        messageText: 'Namaste Priya & Vikram! Delighted to connect with you. For a banquet of 80 guests, our Dil Se Royal Celebration Feast (£18.00/pp) is our signature spread. Includes starters, butter chicken, kadhai paneer, rogan josh lamb, dal makhani, dum biryani, fresh naan and luxury desserts with buffet chafing warmers included.',
+        createdAt: new Date(Date.now() - 3600000 * 1.9),
+      },
+      {
+        id: 'MSG-INIT-3',
+        customerId: 'CUS-101',
+        phoneNumber: '+44 7123 456789',
+        direction: 'INBOUND',
+        messageText: 'That sounds splendid! We have a mixed gathering of vegetarians and meat lovers. Can you guarantee the paneer and veg dishes won\'t run short?',
+        createdAt: new Date(Date.now() - 3600000 * 1.8),
+      },
+      {
+        id: 'MSG-INIT-4',
+        customerId: 'CUS-101',
+        phoneNumber: '+44 7123 456789',
+        direction: 'OUTBOUND',
+        messageText: 'A golden rule from our banquet experience: non-vegetarian guests invariably love the Shahi Paneer as well! We intentionally build in a generous 40% vegetarian buffer so your vegetarian family members enjoy abundant feast platters throughout the evening.',
+        createdAt: new Date(Date.now() - 3600000 * 1.7),
+      },
+    );
+
+    // Seed 1 pending handoff for customer 2
+    this.handoffLog.push({
+      id: 'HND-INIT-1',
+      phoneNumber: '+44 7987 654321',
+      reason: 'Host requested bespoke Jain no-root menu consultation with Executive Chef',
+      status: 'PENDING',
+      createdAt: new Date(Date.now() - 1800000),
+    });
+
+    this.saveToDisk();
+    this.logger.log(`🌱 [ENTERPRISE_DB] Seeded initial database records (5 orders, 5 customers, 5 events, 4 messages, 1 handoff).`);
+    return true;
   }
 }

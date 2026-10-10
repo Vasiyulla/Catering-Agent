@@ -36,109 +36,6 @@ interface MasterSheetRow {
   originalOrder?: EnterpriseOrder;
 }
 
-const DEFAULT_MOCK_ROWS: MasterSheetRow[] = [
-  {
-    id: '#DS-101',
-    dispatchTime: '13:30 BST',
-    timeRemaining: 'T-45m',
-    hostName: 'Priya & Vikram Sharma',
-    phone: '+44 7123 456789',
-    venue: 'Wembley Grand Banqueting Hall',
-    postcode: 'HA9 9AA',
-    covers: 80,
-    dietaryType: 'MIXED',
-    dietaryLabel: 'Mixed 60/40 (Halal Meat + Veg Cushion)',
-    manifest: '3x Awadhi Biryani, 2x Butter Chicken, 2x Shahi Paneer, 80x Naan',
-    handiCount: 'Degh #02 & #04',
-    chefLead: 'Chef Tariq (Exec)',
-    fleetStatus: 'Van #02 Staged',
-    vanNumber: 'Mercedes Sprinter',
-    totalAmount: 1440.0,
-    paymentStatus: 'PAID',
-    stageStatus: 'CONFIRMED',
-  },
-  {
-    id: '#DS-202',
-    dispatchTime: '18:30 BST',
-    timeRemaining: 'T-2h 15m',
-    hostName: 'Rajesh & Suman Patel',
-    phone: '+44 7987 654321',
-    venue: 'Upton Court Road Residence',
-    postcode: 'SL1 2DX',
-    covers: 40,
-    dietaryType: 'VEG',
-    dietaryLabel: 'Strict Pure Veg (Jain Audited)',
-    manifest: '3x Awadhi Biryani Trays, 2x Shahi Kadhai Paneer, 2x Dal Makhani',
-    handiCount: 'Dedicated Veg Range #01',
-    chefLead: 'Chef Balwinder',
-    fleetStatus: 'Queued Staging Bay 1',
-    vanNumber: 'Thermal Fleet #01',
-    totalAmount: 485.0,
-    paymentStatus: 'PENDING',
-    stageStatus: 'QUOTED',
-  },
-  {
-    id: '#DS-303',
-    dispatchTime: '19:00 BST',
-    timeRemaining: 'T-2h 45m',
-    hostName: 'Ayesha & Tariq Khan',
-    phone: '+44 7555 123456',
-    venue: 'The Broadway Banquet Suite',
-    postcode: 'UB1 3HE',
-    covers: 60,
-    dietaryType: 'HALAL',
-    dietaryLabel: '100% British Halal Certified',
-    manifest: 'Dil Se Classic Feast: 4x Awadhi Biryani, 3x Butter Chicken, 60x Roomali',
-    handiCount: 'Degh #03 (Dum Fired)',
-    chefLead: 'Chef Harpreet',
-    fleetStatus: 'Staging Bay 2',
-    vanNumber: 'Heated Van #03',
-    totalAmount: 1160.0,
-    paymentStatus: 'PAID',
-    stageStatus: 'IN_PREP',
-  },
-  {
-    id: '#DS-404',
-    dispatchTime: '19:30 BST',
-    timeRemaining: 'T-3h 15m',
-    hostName: 'Davinder & Harpreet Gill',
-    phone: '+44 7888 990011',
-    venue: 'Osterley Park Pavilions',
-    postcode: 'TW7 4EE',
-    covers: 160,
-    dietaryType: 'MIXED',
-    dietaryLabel: 'Mixed 50/50 + Live Tandoor',
-    manifest: '6x Dum Pukht Gosht, 4x Zafrani Paneer Korma, 160x Live Naan',
-    handiCount: 'Degh #05 & #06',
-    chefLead: 'Chef Kabir & Ustad Farooq',
-    fleetStatus: 'En Route to Venue (ETA 19:10)',
-    vanNumber: 'Mercedes Sprinter #04',
-    totalAmount: 2880.0,
-    paymentStatus: 'PAID',
-    stageStatus: 'DISPATCHED',
-  },
-  {
-    id: '#DS-505',
-    dispatchTime: '20:00 BST',
-    timeRemaining: 'Delivered',
-    hostName: 'Lord & Lady Mountjoy / Gupta Corp',
-    phone: '+44 7444 332211',
-    venue: 'The Grosvenor House Ballroom',
-    postcode: 'W1K 7TN',
-    covers: 200,
-    dietaryType: 'HALAL',
-    dietaryLabel: 'Gourmet Mughlai • Nut-Free Audited',
-    manifest: 'Royal Celebration Spread: 8x Awadhi Lamb, 6x Murgh Makhani, 200x Taftan',
-    handiCount: 'Degh #07 & #08',
-    chefLead: 'Chef Kabir (Head Exec)',
-    fleetStatus: 'Delivered at Venue (68°C Verified)',
-    vanNumber: 'Van #01 & #02',
-    totalAmount: 3600.0,
-    paymentStatus: 'PAID',
-    stageStatus: 'COMPLETED',
-  },
-];
-
 export interface KitchenPrepSheetProps {
   orders?: EnterpriseOrder[];
   onSelectOrder?: (order: EnterpriseOrder) => void;
@@ -153,58 +50,59 @@ export const KitchenPrepSheet: React.FC<KitchenPrepSheetProps> = ({
   const [selectedStation, setSelectedStation] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Dynamically derive rows from live orders prop, or fallback to default mock rows
+  // Dynamically derive rows exclusively from live orders prop
   const rows: MasterSheetRow[] = useMemo(() => {
-    if (orders && orders.length > 0) {
-      return orders.map((order) => {
-        const covers = order.event?.guestCount || 40;
-        const dietaryRaw = (order.event?.dietaryPreference || 'Mixed 60/40').toLowerCase();
-        let dietaryType: 'HALAL' | 'VEG' | 'MIXED' = 'MIXED';
-        if (dietaryRaw.includes('pure veg') || dietaryRaw.includes('jain') || dietaryRaw.includes('veg')) {
-          dietaryType = 'VEG';
-        } else if (dietaryRaw.includes('100% halal') || dietaryRaw.includes('halal certified') || dietaryRaw.includes('halal')) {
-          dietaryType = 'HALAL';
-        }
-
-        let handiCount = 'Degh #02 & #04';
-        if (covers >= 150) {
-          handiCount = 'Degh #07 & #08 (Triple Dum)';
-        } else if (covers >= 100) {
-          handiCount = 'Degh #05 & #06';
-        } else if (dietaryType === 'VEG') {
-          handiCount = 'Dedicated Veg Range #01';
-        }
-
-        const status = order.event?.status || 'CONFIRMED';
-        let timeRemaining = 'T-2h 15m';
-        if (status === 'IN_PREP') timeRemaining = 'T-45m (Dum Fired)';
-        else if (status === 'DISPATCHED') timeRemaining = 'En Route';
-        else if (status === 'COMPLETED') timeRemaining = 'Delivered';
-
-        return {
-          id: `#${order.id.replace('ORD-', 'DS-')}`,
-          dispatchTime: order.event?.servingTime || '18:30 BST',
-          timeRemaining,
-          hostName: order.customer?.name || 'Valued Host',
-          phone: order.customer?.phoneNumber || '+44 7000 000000',
-          venue: order.event?.deliveryAddress || 'London Delivery',
-          postcode: order.customer?.postcode || 'London',
-          covers,
-          dietaryType,
-          dietaryLabel: order.event?.dietaryPreference || 'Mixed 60/40 (Halal Meat + Veg Cushion)',
-          manifest: order.itemsSummary || 'Dil Se Royal Banquet Feast',
-          handiCount,
-          chefLead: 'Chef Tariq (Exec)',
-          fleetStatus: 'Van #02 Staged',
-          vanNumber: 'Mercedes Sprinter',
-          totalAmount: order.totalAmount || 0,
-          paymentStatus: order.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
-          stageStatus: (status as any) || 'CONFIRMED',
-          originalOrder: order,
-        };
-      });
+    if (!orders || orders.length === 0) {
+      return [];
     }
-    return DEFAULT_MOCK_ROWS;
+
+    return orders.map((order) => {
+      const covers = order.event?.guestCount || 40;
+      const dietaryRaw = (order.event?.dietaryPreference || 'Mixed 60/40').toLowerCase();
+      let dietaryType: 'HALAL' | 'VEG' | 'MIXED' = 'MIXED';
+      if (dietaryRaw.includes('pure veg') || dietaryRaw.includes('jain') || dietaryRaw.includes('veg')) {
+        dietaryType = 'VEG';
+      } else if (dietaryRaw.includes('100% halal') || dietaryRaw.includes('halal certified') || dietaryRaw.includes('halal')) {
+        dietaryType = 'HALAL';
+      }
+
+      let handiCount = 'Degh #02 & #04';
+      if (covers >= 150) {
+        handiCount = 'Degh #07 & #08 (Triple Dum)';
+      } else if (covers >= 100) {
+        handiCount = 'Degh #05 & #06';
+      } else if (dietaryType === 'VEG') {
+        handiCount = 'Dedicated Veg Range #01';
+      }
+
+      const status = order.event?.status || 'CONFIRMED';
+      let timeRemaining = 'T-2h 15m';
+      if (status === 'IN_PREP') timeRemaining = 'T-45m (Dum Fired)';
+      else if (status === 'DISPATCHED') timeRemaining = 'En Route';
+      else if (status === 'COMPLETED') timeRemaining = 'Delivered';
+
+      return {
+        id: `#${order.id.replace('ORD-', 'DS-')}`,
+        dispatchTime: order.event?.servingTime || '18:30 BST',
+        timeRemaining,
+        hostName: order.customer?.name || 'Valued Host',
+        phone: order.customer?.phoneNumber || '+44 7000 000000',
+        venue: order.event?.deliveryAddress || 'London Delivery',
+        postcode: order.customer?.postcode || 'London',
+        covers,
+        dietaryType,
+        dietaryLabel: order.event?.dietaryPreference || 'Mixed 60/40 (Halal Meat + Veg Cushion)',
+        manifest: order.itemsSummary || 'Dil Se Royal Banquet Feast',
+        handiCount,
+        chefLead: 'Chef Tariq (Exec)',
+        fleetStatus: 'Van #02 Staged',
+        vanNumber: 'Mercedes Sprinter',
+        totalAmount: order.totalAmount || 0,
+        paymentStatus: order.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
+        stageStatus: (status as any) || 'CONFIRMED',
+        originalOrder: order,
+      };
+    });
   }, [orders]);
 
   const handleCopyId = (code: string, e?: React.MouseEvent) => {
@@ -413,17 +311,34 @@ export const KitchenPrepSheet: React.FC<KitchenPrepSheetProps> = ({
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row, idx) => (
-              <tr
-                key={row.id}
-                className={idx % 2 === 0 ? styles.rowEven : styles.rowOdd}
-                style={{ cursor: row.originalOrder && onSelectOrder ? 'pointer' : 'default' }}
-                onClick={() => {
-                  if (row.originalOrder && onSelectOrder) {
-                    onSelectOrder(row.originalOrder);
-                  }
-                }}
-              >
+            {filteredRows.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '56px 24px', color: '#94a3b8' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                    <ChefHat size={36} style={{ color: '#cbd5e1' }} />
+                    <strong style={{ color: '#475569', fontSize: '15px' }}>
+                      {rows.length === 0 ? 'No Active Kitchen Production Orders' : 'No matching tickets found'}
+                    </strong>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>
+                      {rows.length === 0
+                        ? 'Confirmed banquet orders from the live pipeline will appear here in real-time.'
+                        : 'Adjust your search query or station filters above.'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredRows.map((row, idx) => (
+                <tr
+                  key={row.id}
+                  className={idx % 2 === 0 ? styles.rowEven : styles.rowOdd}
+                  style={{ cursor: row.originalOrder && onSelectOrder ? 'pointer' : 'default' }}
+                  onClick={() => {
+                    if (row.originalOrder && onSelectOrder) {
+                      onSelectOrder(row.originalOrder);
+                    }
+                  }}
+                >
                 {/* Slip ID */}
                 <td>
                   <button
@@ -484,7 +399,7 @@ export const KitchenPrepSheet: React.FC<KitchenPrepSheetProps> = ({
                 {/* Status */}
                 <td style={{ textAlign: 'center' }}>{getStagePill(row.stageStatus)}</td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

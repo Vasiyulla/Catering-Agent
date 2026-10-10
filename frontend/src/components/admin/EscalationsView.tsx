@@ -16,23 +16,11 @@ interface EscalationsViewProps {
 }
 
 export const EscalationsView: React.FC<EscalationsViewProps> = ({
-  handoffs,
+  handoffs = [],
   onResolve,
 }) => {
   const pending = handoffs.filter((h) => h.status === 'PENDING');
-
-  // Realistic sample if none yet
-  const fallbackHandoffs: EnterpriseHandoff[] = [
-    {
-      id: 'HO-901',
-      phoneNumber: '+44 7444 332211',
-      reason: 'Host requested bespoke saffron lamb chop live station not in standard catalog',
-      status: 'PENDING',
-      createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-    },
-  ];
-
-  const displayList = pending.length > 0 ? pending : fallbackHandoffs;
+  const displayList = pending;
 
   return (
     <div className={styles.escalationsContainer}>

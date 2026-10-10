@@ -1,7 +1,12 @@
 import { Truck, MapPin, Clock, Navigation } from 'lucide-react';
+import { EnterpriseOrder } from '../../types/index.ts';
 import styles from './LogisticsView.module.css';
 
-export const LogisticsView: React.FC = () => {
+export interface LogisticsViewProps {
+  orders?: EnterpriseOrder[];
+}
+
+export const LogisticsView: React.FC<LogisticsViewProps> = ({ orders = [] }) => {
   const routes = [
     {
       name: 'North-West Corridor (Brent & Harrow)',
@@ -61,15 +66,24 @@ export const LogisticsView: React.FC = () => {
       </div>
 
       <div className={styles.grid}>
-        {routes.map((r, i) => (
-          <article key={i} className={styles.routeCard}>
-            <div className={styles.routeTop}>
-              <div className={styles.routeNameWrap}>
-                <Truck size={16} className={styles.truckIcon} />
-                <h4 className={styles.routeName}>{r.name}</h4>
+        {routes.map((r, i) => {
+          const matchingOrders = orders.filter((o) => {
+            const dest = (o.event?.deliveryAddress || o.customer?.postcode || '').toUpperCase();
+            return r.postcodes.some((p) => dest.includes(p.split(' ')[0]));
+          });
+
+          return (
+            <article key={i} className={styles.routeCard}>
+              <div className={styles.routeTop}>
+                <div className={styles.routeNameWrap}>
+                  <Truck size={16} className={styles.truckIcon} />
+                  <h4 className={styles.routeName}>{r.name}</h4>
+                </div>
+                <span className={styles.zoneBadge}>
+                  {matchingOrders.length > 0 ? `${matchingOrders.length} Active • ` : ''}
+                  {r.zone}
+                </span>
               </div>
-              <span className={styles.zoneBadge}>{r.zone}</span>
-            </div>
 
             <div className={styles.postcodePills}>
               {r.postcodes.map((pc, idx) => (
@@ -90,7 +104,8 @@ export const LogisticsView: React.FC = () => {
               <span className={styles.feeBadge}>{r.deliveryFee}</span>
             </div>
           </article>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

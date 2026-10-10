@@ -18,7 +18,7 @@ import { AgentService } from '../agent/agent.service.js';
 import { maskPhoneNumber } from '../common/utils/pii.util.js';
 import type { WhatsAppWebhookPayload } from './dto/whatsapp-webhook.dto.js';
 
-@Controller('webhook')
+@Controller(['webhook', 'api/webhook'])
 export class WhatsAppController {
   private readonly logger = new Logger(WhatsAppController.name);
 

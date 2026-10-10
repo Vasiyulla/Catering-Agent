@@ -103,7 +103,7 @@ export const App: React.FC = () => {
   }, []);
 
   const handleAdvanceStatus = async (orderId: string, newStatus: string) => {
-    // Optimistic UI update
+    // Optimistic UI update across all orders
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
@@ -115,6 +115,17 @@ export const App: React.FC = () => {
             }
           : o
       )
+    );
+    // Optimistic UI update for currently opened drawer
+    setSelectedOrder((prev) =>
+      prev && prev.id === orderId
+        ? {
+            ...prev,
+            paymentStatus: newStatus === 'CONFIRMED' ? 'PAID' : prev.paymentStatus,
+            confirmedAt: newStatus === 'CONFIRMED' ? new Date().toISOString() : prev.confirmedAt,
+            event: prev.event ? { ...prev.event, status: newStatus as any } : undefined,
+          }
+        : prev
     );
     await api.updateOrderStatus(orderId, newStatus);
     loadData();
@@ -174,7 +185,7 @@ export const App: React.FC = () => {
           {/* Dynamic Views */}
           {currentView === 'pipeline' && (
             <>
-              <StatsBar stats={stats} />
+              <StatsBar stats={stats} orders={orders} />
               <OrderKanban
                 orders={orders}
                 filter={activeFilter}
@@ -202,7 +213,7 @@ export const App: React.FC = () => {
 
           {currentView === 'menu_catalog' && <MenuCatalogView items={menuItems} />}
 
-          {currentView === 'logistics' && <LogisticsView />}
+          {currentView === 'logistics' && <LogisticsView orders={orders} />}
         </div>
 
         {/* Velvet Scrim Dual-Pane Conversational Drawer */}
