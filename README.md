@@ -1,124 +1,132 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Dil Se Catering • Enterprise Autonomous Operations Platform
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![NestJS](https://img.shields.io/badge/Backend-NestJS%2012-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![React](https://img.shields.io/badge/Frontend-React%2019%20+%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![LangGraph](https://img.shields.io/badge/Agent-LangGraph-blue)](https://langchain.com/)
+[![License](https://img.shields.io/badge/License-Proprietary-gold)]()
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Autonomous, multi-modal catering intelligence platform engineered for luxury British-Indian royal banquets, corporate dining, and wedding feasts across the Greater London & South-East UK corridor.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🌟 Key Capabilities
 
-## Project setup
+* **Autonomous LangGraph Hospitality Agent**: Multi-turn WhatsApp concierge handling guest qualifications, event date routing, dynamic package configurations, and customer intent parsing.
+* **Multimodal Voice Note Ingestion**: Ingests and transcribes WhatsApp voice notes (`audio/ogg; codecs=opus`) across Hindi, Gujarati, Punjabi, and Hinglish via Gemini 2.5 Flash and Whisper.
+* **Host-Protection Radar**: Automatically audits orders to protect host reputations against "stealth meat-eaters," inadequate vegetarian buffers, and dietary cross-contamination.
+* **Deterministic Billing Engine**: 100% deterministic pricing with tiered per-head discounts, mileage dispatch surcharges, and guest minimum checks.
+* **Real-time Operations Cockpit**: Single-pane enterprise dashboard with Server-Sent Events (SSE) push updates, interactive LangGraph Thought Inspector, Kitchen Prep Sheets, and Concierge Escalation queues.
 
-```bash
-$ npm install
+---
+
+## 🏗️ Architecture
+
+```
+Catering/
+├── docs/                             # System Architecture & Design System Specs
+│   ├── ARCHITECTURE.md               # Architectural Blueprint & Subsystems
+│   ├── DESIGN_SYSTEM.md              # Warm Regal Editorial Minimalist tokens
+│   └── PLAN.md                       # Roadmap & Engineering Milestones
+├── frontend/                         # Vite + React 19 Enterprise Cockpit (Vercel)
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── admin/                # Cockpit Views, Modals & Barrel Exports
+│   │   │   └── common/               # Shared Reusable Elements (RoyalCrest)
+│   │   ├── services/                 # REST API Client & Server-Sent Events (SSE)
+│   │   ├── styles/                   # Design System Tokens & Global Styles
+│   │   └── types/                    # Enterprise TypeScript Interfaces
+│   └── vercel.json                   # Vercel SPA Routing Configuration
+├── src/                              # NestJS Modular Backend (Render)
+│   ├── agent/                        # LangGraph Graph, Billing, and Protection
+│   ├── menu/                         # Menu Catalog & Dual-Pricing System
+│   ├── api/                          # REST Endpoints & /api/events SSE Stream
+│   ├── common/                       # PII Masking & Cryptographic Utils
+│   ├── config/                       # Type-safe App Configuration
+│   ├── database/                     # High-Speed In-Memory & File Store
+│   ├── events/                       # Reactive Server-Sent Events (SSE) Module
+│   └── whatsapp/                     # Meta Cloud API, Voice Notes & Audio Transcriber
+├── scripts/                          # Seeding, Simulation, & Verification CLI
+├── test/                             # Automated E2E & Vitest Integration Suites
+└── render.yaml                       # Render Web Service Blueprint (API Only)
 ```
 
-## Compile and run the project
+---
 
+## 🚀 Quick Start
+
+### Prerequisites
+* Node.js 20+
+* npm 10+
+
+### 1. Environment Configuration
+Create a `.env` file in the root directory:
 ```bash
-# development
-$ npm run start
+cp .env.example .env
+```
+Populate your credentials:
+```env
+PORT=3000
+NODE_ENV=development
 
-# watch mode
-$ npm run start:dev
+# WhatsApp Cloud API
+WHATSAPP_PHONE_NUMBER_ID=your_phone_id
+WHATSAPP_ACCESS_TOKEN=your_token
+WHATSAPP_VERIFY_TOKEN=dil_se_catering_webhook_verify_secret
 
-# production mode
-$ npm run start:prod
+# AI Providers (Gemini / OpenAI / OpenRouter)
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-## Run tests
-
+### 2. Start the Backend API (Port 3000)
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
+npm run start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 3. Start the Operations Cockpit (Port 5173)
+In a separate terminal:
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## 🚢 Production Deployment
+
+### Backend Deployment (Render)
+The repository includes a ready-to-deploy [`render.yaml`](file:///c:/Users/vasiy/Documents/Catering/render.yaml) configured strictly for the NestJS API:
+* **Service Name**: `dil-se-catering-api`
+* **Runtime**: Node.js
+* **Build Command**: `npm install && npm run build`
+* **Start Command**: `npm run start:prod`
+
+### Frontend Deployment (Vercel)
+Deploy the `frontend/` directory directly to Vercel:
+* **Framework Preset**: Vite
+* **Root Directory**: `frontend`
+* **Build Command**: `npm run build`
+* **Output Directory**: `dist`
+* **Environment Variable**: `VITE_API_BASE_URL=https://your-render-api.onrender.com/api`
+
+---
+
+## 🧪 Testing
+
+Run the automated test suite powered by Vitest:
+```bash
+# Unit & integration tests
+npm test
+
+# E2E test suite
+npm run test:e2e
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
-
-```bash
-$ npm install @nestjs/observe
-```
-
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## 🛡️ License
+Private & Proprietary. All Rights Reserved © Dil Se Catering London.

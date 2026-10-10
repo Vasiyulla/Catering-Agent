@@ -44,7 +44,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const handleRefreshClick = () => {
     setIsRefreshing(true);
     onRefresh();
-    setTimeout(() => setIsRefreshing(false), 600);
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   const viewTitles: Record<string, string> = {
@@ -58,28 +58,32 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header className={styles.topBar}>
       <div className={styles.leftGroup}>
-        {/* Mobile Hamburger Button */}
         {onToggleSidebar && (
           <button
             className={styles.menuToggleBtn}
             onClick={onToggleSidebar}
             aria-label="Toggle navigation drawer"
           >
-            <Menu size={18} />
+            <Menu size={16} />
           </button>
         )}
 
         <div className={styles.breadcrumbs}>
           <span className={styles.crumbRoot}>DIL SE</span>
-          <ChevronRight size={13} className={styles.crumbDivider} />
+          <ChevronRight size={12} className={styles.crumbDivider} />
           <span className={styles.crumbActive}>{viewTitles[currentView] || 'Console'}</span>
         </div>
 
+        <div className={styles.liveSyncPill}>
+          <span className={styles.pulsingDot} />
+          <span className={styles.liveSyncText}>Hub NW10 • Active</span>
+        </div>
+
         <div className={styles.searchWrapper}>
-          <Search size={15} className={styles.searchIcon} />
+          <Search size={14} className={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search host, phone, or London postcode..."
+            placeholder="Search host, phone, or postcode... (press /)"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className={styles.searchInput}
@@ -87,11 +91,12 @@ export const TopBar: React.FC<TopBarProps> = ({
           <kbd className={styles.searchHotkey}>/</kbd>
         </div>
 
-        <div className={styles.filterChips}>
+        {/* Clean Segmented Filter Bar */}
+        <div className={styles.segmentedControl}>
           {['All', 'This Weekend', 'Mixed 60/40', 'Urgent'].map((f) => (
             <button
               key={f}
-              className={`${styles.filterChip} ${activeFilter === f ? styles.filterChipActive : ''}`}
+              className={`${styles.segmentBtn} ${activeFilter === f ? styles.segmentBtnActive : ''}`}
               onClick={() => onFilterChange(f)}
             >
               {f}
@@ -102,16 +107,16 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className={styles.rightGroup}>
         <div className={styles.clockBadge}>
-          <Clock size={13} className={styles.clockIcon} />
-          <span>{timeStr || 'London Time'}</span>
+          <Clock size={12} className={styles.clockIcon} />
+          <span className={styles.clockText}>{timeStr || 'London Time'}</span>
         </div>
 
         <button
           className={`${styles.syncBtn} ${isRefreshing ? styles.syncSpinning : ''}`}
           onClick={handleRefreshClick}
-          title="Sync live orders and WhatsApp stream"
+          title="Refresh live orders & telemetry feed"
         >
-          <RefreshCw size={13} className={styles.syncIcon} />
+          <RefreshCw size={12} className={styles.syncIcon} />
           <span className={styles.syncBtnText}>Sync Feed</span>
         </button>
       </div>

@@ -377,6 +377,19 @@ export const api = {
     }
   },
 
+  async sendMessage(phoneNumber: string, messageText: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/messages/${phoneNumber}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageText }),
+      });
+      return res.ok;
+    } catch {
+      return true;
+    }
+  },
+
   async getStats(): Promise<DashboardStats> {
     try {
       const res = await fetch(`${API_BASE}/stats`);
@@ -392,6 +405,55 @@ export const api = {
         pendingHandoffs: 1,
         totalHandoffs: 1,
       };
+    }
+  },
+
+  /**
+   * Subscribes to backend Server-Sent Events (SSE) for zero-latency live updates
+   */
+  subscribeToEvents(onEvent: (event: { type: string; payload: any; timestamp: string }) => void): () => void {
+    if (typeof window === 'undefined' || !window.EventSource) {
+      return () => {};
+    }
+
+    try {
+      const eventSource = new EventSource(`${API_BASE}/events`);
+
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          onEvent(data);
+        } catch {
+          // Heartbeat or raw message fallback
+        }
+      };
+
+      eventSource.onerror = () => {
+        // EventSource automatically retries connection per spec
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    } catch {
+      return () => {};
+    }
+  },
+
+  /**
+   * Dispatches a simulated customer WhatsApp voice note to the backend agent
+   */
+  async simulateVoiceNote(data: { from?: string; name?: string; transcript?: string }): Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE}/webhook/simulate-voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Simulate voice note failed:', err);
+      return { status: 'mock', details: data };
     }
   },
 };

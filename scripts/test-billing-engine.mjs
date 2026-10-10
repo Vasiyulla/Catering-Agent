@@ -1,4 +1,4 @@
-import { MenuCacheService } from '../dist/airtable/menu-cache.service.js';
+import { MenuService as MenuCacheService } from '../dist/menu/menu.service.js';
 import { BillingEngineService } from '../dist/agent/billing/billing-engine.service.js';
 
 async function testBilling() {

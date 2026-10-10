@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import configuration from '../config/configuration.js';
-import { MenuCacheService } from '../airtable/menu-cache.service.js';
-import { AirtableService } from '../airtable/airtable.service.js';
+import { MenuService as MenuCacheService } from '../menu/menu.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { BillingEngineService } from './billing/billing-engine.service.js';
 import { HostProtectionService } from './protection/host-protection.service.js';
@@ -33,7 +32,6 @@ describe('Dil Se Catering Core Agentic System', () => {
       ],
       providers: [
         MenuCacheService,
-        AirtableService,
         DatabaseService,
         BillingEngineService,
         HostProtectionService,

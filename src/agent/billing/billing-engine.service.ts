@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MenuCacheService, MenuItem, CateringPackage } from '../../airtable/menu-cache.service.js';
+import { MenuService as MenuCacheService, MenuItem, CateringPackage } from '../../menu/menu.service.js';
 
 export interface TrayOrderItem {
   dishId: string;

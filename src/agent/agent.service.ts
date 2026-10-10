@@ -3,13 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOpenAI } from '@langchain/openai';
-import { MenuCacheService } from '../airtable/menu-cache.service.js';
-import { AirtableService } from '../airtable/airtable.service.js';
+import { MenuService } from '../menu/menu.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { BillingEngineService } from './billing/billing-engine.service.js';
 import { HostProtectionService } from './protection/host-protection.service.js';
 import { buildCateringGraph } from './graph/catering.graph.js';
 import { WhatsAppService } from '../whatsapp/whatsapp.service.js';
+import { EventsService } from '../events/events.service.js';
 
 @Injectable()
 export class AgentService implements OnModuleInit {
@@ -19,22 +19,21 @@ export class AgentService implements OnModuleInit {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly menuCacheService: MenuCacheService,
+    private readonly menuService: MenuService,
     private readonly databaseService: DatabaseService,
     private readonly billingEngineService: BillingEngineService,
     private readonly hostProtectionService: HostProtectionService,
     @Inject(forwardRef(() => WhatsAppService))
     private readonly whatsappService: WhatsAppService,
     @Optional()
-    private readonly airtableService?: AirtableService,
+    private readonly eventsService?: EventsService,
   ) {}
 
   onModuleInit() {
     this.initializeLLM();
     this.graph = buildCateringGraph(
       this.llm,
-      this.menuCacheService,
-      this.airtableService,
+      this.menuService,
       this.databaseService,
       this.billingEngineService,
       this.hostProtectionService,
@@ -98,6 +97,11 @@ export class AgentService implements OnModuleInit {
 
     try {
       this.logger.log(`Invoking agent graph for ${phoneNumber} (${senderName})...`);
+      this.eventsService?.emit('AGENT_THINKING', {
+        phoneNumber,
+        customerName: senderName,
+        messageText,
+      });
 
       // 1. Enterprise Database: Register/retrieve customer & audit message atomically
       const dbCust = await this.databaseService.findOrCreateCustomer(senderName, phoneNumber);
@@ -107,15 +111,6 @@ export class AgentService implements OnModuleInit {
         direction: 'INBOUND',
         messageText,
       });
-
-      // 2. Optional secondary viewer sync (Airtable, non-blocking)
-      if (this.airtableService) {
-        try {
-          await this.airtableService.findOrCreateCustomer(senderName, phoneNumber);
-        } catch (err: unknown) {
-          this.logger.warn(`Secondary Airtable sync skipped: ${(err as Error).message}`);
-        }
-      }
 
       const result = await this.graph.invoke(
         {
@@ -131,6 +126,14 @@ export class AgentService implements OnModuleInit {
       );
 
       const reply = result.replyMessage;
+      this.eventsService?.emit('AGENT_DECISION', {
+        phoneNumber,
+        customerName: senderName,
+        reply,
+        orderMode: result.orderMode,
+        estimatedTotal: result.estimatedTotal,
+        isConfirmed: result.isConfirmed,
+      });
       const splitBubbles: string[] =
         result.splitBubbles && result.splitBubbles.length > 0
           ? result.splitBubbles

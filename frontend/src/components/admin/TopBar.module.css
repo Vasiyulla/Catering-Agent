@@ -1,22 +1,22 @@
 .topBar {
-  height: 56px;
+  height: 52px;
   background-color: #ffffff;
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
-  box-shadow: var(--shadow-xs);
+  padding: 0 1.25rem;
   position: sticky;
   top: 0;
-  z-index: 15;
+  z-index: 20;
 }
 
 .leftGroup {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.85rem;
   min-width: 0;
+  flex: 1;
 }
 
 .menuToggleBtn {
@@ -25,7 +25,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-primary);
-  padding: 0.4rem;
+  padding: 0.35rem;
   cursor: pointer;
   align-items: center;
   justify-content: center;
@@ -41,16 +41,16 @@
 .breadcrumbs {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   font-family: var(--font-body);
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.03em;
   flex-shrink: 0;
 }
 
 .crumbRoot {
   color: var(--color-text-muted);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -65,110 +65,151 @@
   white-space: nowrap;
 }
 
+/* Subtle Live Status Indicator */
+.liveSyncPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.pulsingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4);
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 5px rgba(22, 163, 74, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.liveSyncText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: #166534;
+  letter-spacing: 0.02em;
+}
+
+/* Search Box */
 .searchWrapper {
   position: relative;
   display: flex;
   align-items: center;
+  max-width: 320px;
+  width: 100%;
 }
 
 .searchIcon {
   position: absolute;
-  left: 0.75rem;
+  left: 0.7rem;
   color: var(--color-text-muted);
   pointer-events: none;
 }
 
 .searchInput {
-  background: var(--color-canvas-subtle);
+  background: var(--color-canvas);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 2rem 0.4rem 2.2rem;
+  padding: 0.35rem 1.8rem 0.35rem 2rem;
   font-family: var(--font-body);
-  font-size: 0.82rem;
+  font-size: 12px;
   color: var(--color-text-primary);
-  width: 240px;
+  width: 100%;
   transition: all var(--transition-fast);
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--color-emerald);
+  border-color: #0c2b22;
   background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(12, 43, 34, 0.1);
-  width: 280px;
+  box-shadow: 0 0 0 2px rgba(12, 43, 34, 0.08);
 }
 
 .searchHotkey {
   position: absolute;
-  right: 0.65rem;
+  right: 0.5rem;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--color-text-muted);
   background: #ffffff;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
-  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
   pointer-events: none;
 }
 
-.filterChips {
+/* Linear-style Segmented Control */
+.segmentedControl {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filterChips::-webkit-scrollbar {
-  display: none;
-}
-
-.filterChip {
-  background: #ffffff;
+  background: var(--color-canvas-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0.25rem 0.65rem;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.segmentBtn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
 }
 
-.filterChip:hover {
-  background: var(--color-canvas-subtle);
-  border-color: var(--color-border-hover);
+.segmentBtn:hover {
   color: var(--color-text-primary);
 }
 
-.filterChipActive {
-  background: var(--color-emerald);
-  border-color: var(--color-emerald);
-  color: #ffffff;
+.segmentBtnActive {
+  background: #ffffff;
+  color: var(--color-text-primary);
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
+/* Right Header Group */
 .rightGroup {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   flex-shrink: 0;
 }
 
 .clockBadge {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  background: var(--color-canvas-subtle);
+  gap: 0.35rem;
+  background: var(--color-canvas);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0.3rem 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  padding: 0.25rem 0.55rem;
   white-space: nowrap;
 }
 
@@ -176,76 +217,69 @@
   color: var(--color-text-muted);
 }
 
+.clockText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
 .syncBtn {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   background: #ffffff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0.32rem 0.75rem;
+  padding: 0.25rem 0.65rem;
   font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  white-space: nowrap;
 }
 
 .syncBtn:hover {
   background: var(--color-canvas-subtle);
   border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
 }
 
 .syncIcon {
-  transition: transform var(--transition-normal);
   color: var(--color-text-muted);
 }
 
 .syncSpinning .syncIcon {
-  transform: rotate(180deg);
+  animation: spin 0.6s linear infinite;
 }
 
-/* Responsive Breakpoints */
-@media (max-width: 1200px) {
-  .searchInput {
-    width: 170px;
-  }
-  .searchInput:focus {
-    width: 210px;
-  }
-  .filterChips {
-    display: none;
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
   }
 }
 
-@media (max-width: 992px) {
-  .topBar {
-    padding: 0 1rem;
-  }
+@media (max-width: 1024px) {
   .menuToggleBtn {
-    display: flex;
+    display: inline-flex;
   }
-  .crumbRoot {
-    display: none;
+  .searchWrapper {
+    max-width: 200px;
   }
-  .crumbDivider {
+  .segmentedControl {
     display: none;
   }
 }
 
-@media (max-width: 680px) {
-  .searchWrapper {
+@media (max-width: 768px) {
+  .liveSyncPill {
     display: none;
   }
   .clockBadge {
     display: none;
   }
-  .syncBtnText {
+  .searchWrapper {
     display: none;
-  }
-  .syncBtn {
-    padding: 0.35rem 0.5rem;
   }
 }

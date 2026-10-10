@@ -93,6 +93,16 @@ export class WhatsAppController {
               incomingText = msg.text.body;
             } else if (msg.type === 'interactive' && msg.interactive?.button_reply?.title) {
               incomingText = msg.interactive.button_reply.title;
+            } else if (msg.type === 'audio' && msg.audio?.id) {
+              this.logger.log(`🎙️ [AUDIO_VOICE_NOTE_DETECTED] Processing audio message ID: ${msg.audio.id}`);
+              const media = await this.whatsappService.downloadMediaBuffer(msg.audio.id);
+              if (media?.buffer) {
+                const transcribed = await this.whatsappService.transcribeAudio(media.buffer, media.mimeType);
+                if (transcribed) {
+                  incomingText = `[Voice Note]: ${transcribed}`;
+                  this.logger.log(`🎙️ [TRANSCRIPTION_SUCCESS] "${incomingText}"`);
+                }
+              }
             }
 
             this.logger.log(`📩 [MESSAGE_RECEIVED] From: ${maskPhoneNumber(from)} (${senderName}) | Text: "${incomingText}"`);
@@ -143,6 +153,46 @@ export class WhatsAppController {
       status: 'success',
       message: 'Simulated customer message sent to LangGraph agent pipeline',
       details: { from, name, prompt: message },
+    });
+  }
+
+  /**
+   * Simulation Endpoint for Voice Note testing
+   */
+  @Post('simulate-voice')
+  async simulateVoiceNote(
+    @Body()
+    body: {
+      from?: string;
+      name?: string;
+      transcript?: string;
+      audioBase64?: string;
+      mimeType?: string;
+    },
+    @Res() res: Response,
+  ) {
+    const from = body.from || '447000000002';
+    const name = body.name || 'Simulated Voice Host';
+    let text = body.transcript;
+
+    if (!text && body.audioBase64) {
+      const buffer = Buffer.from(body.audioBase64, 'base64');
+      text = await this.whatsappService.transcribeAudio(buffer, body.mimeType || 'audio/ogg');
+    }
+
+    if (!text) {
+      text = 'Namaste, we need catering for 60 guests in Wembley this Saturday for our anniversary dinner. Can you send the Royal Gold package quote?';
+    }
+
+    const fullPrompt = `[Voice Note]: ${text}`;
+    this.logger.log(`🎙️ [SIMULATE_VOICE] Processing voice note prompt: "${fullPrompt}"`);
+    await this.agentService.handleCustomerMessage(from, name, fullPrompt);
+
+    return res.status(HttpStatus.OK).json({
+      status: 'success',
+      transcription: text,
+      message: 'Simulated customer voice note transcribed and processed by agent pipeline',
+      details: { from, name, prompt: fullPrompt },
     });
   }
 }

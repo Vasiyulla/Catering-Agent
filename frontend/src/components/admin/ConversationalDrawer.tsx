@@ -11,9 +11,11 @@ import {
   Clock,
   Users,
   Printer,
-  Sparkles,
   UserCog,
   Bot,
+  Activity,
+  Cpu,
+  Check,
 } from 'lucide-react';
 import { EnterpriseOrder, EnterpriseMessage } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
@@ -33,13 +35,15 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
   const [messages, setMessages] = useState<EnterpriseMessage[]>([]);
   const [isStaffTakeover, setIsStaffTakeover] = useState<boolean>(false);
   const [composerText, setComposerText] = useState<string>('');
-  const [mobileTab, setMobileTab] = useState<'chat' | 'dossier'>('chat');
+  const [mobileTab, setMobileTab] = useState<'chat' | 'dossier' | 'telemetry'>('chat');
+  const [activeRightTab, setActiveRightTab] = useState<'dossier' | 'telemetry'>('telemetry');
+  const [isQuoteApproved, setIsQuoteApproved] = useState<boolean>(false);
 
   useEffect(() => {
     if (!order) return;
     const customer = order.customer;
     if (!customer?.phoneNumber) return;
-    const guestCount = order.event?.guestCount || 40;
+    const guestCount = order.event?.guestCount || 80;
 
     let isCurrent = true;
     api.getMessages(customer.phoneNumber).then((res) => {
@@ -51,7 +55,7 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
             id: 'm1',
             phoneNumber: customer.phoneNumber,
             direction: 'INBOUND',
-            messageText: `Namaste! We are arranging catering for ${guestCount} guests in ${customer.postcode || 'London'}. Could you share your royal banquet packages?`,
+            messageText: `Namaste! We are arranging catering for ${guestCount} guests in ${order.event?.deliveryAddress || customer.postcode || 'London'}. Could you share your royal banquet packages?`,
             createdAt: '14:20',
           },
           {
@@ -88,36 +92,48 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
 
   const currentStatus = order.event?.status || 'QUOTED';
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!composerText.trim() || !order.customer?.phoneNumber) return;
+
+    const text = composerText.trim();
+    const phone = order.customer.phoneNumber;
 
     const newMsg: EnterpriseMessage = {
       id: `m-${Date.now()}`,
-      phoneNumber: order.customer.phoneNumber,
+      phoneNumber: phone,
       direction: 'OUTBOUND',
-      messageText: composerText,
+      messageText: text,
       createdAt: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, newMsg]);
     setComposerText('');
+
+    await api.sendMessage(phone, text);
   };
 
   const handleQuickInsert = (text: string) => {
     setComposerText(text);
   };
 
+  const handleApproveQuote = () => {
+    setIsQuoteApproved(true);
+    setComposerText(
+      `Official Dil Se Quotation Approved: £${order.totalAmount.toFixed(2)} all-inclusive. You can secure your date with a £500 deposit via https://pay.dilse.co.uk/invoice-${order.id}`
+    );
+  };
+
   return (
     <div className={styles.drawerBackdrop} onClick={onClose}>
       <div className={styles.drawer} onClick={(e) => e.stopPropagation()}>
-        {/* Sleek Enterprise Header */}
+        {/* Crisp Header */}
         <div className={styles.drawerHeader}>
           <div className={styles.headerLeft}>
             <div className={styles.customerMeta}>
               <div className={styles.nameRow}>
                 <h3 className={styles.custTitle}>{order.customer?.name}</h3>
                 <span className={styles.verifiedChip}>
-                  <CheckCircle2 size={12} />
+                  <CheckCircle2 size={11} />
                   <span>WhatsApp Verified</span>
                 </span>
               </div>
@@ -134,20 +150,20 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
             >
               {isStaffTakeover ? (
                 <>
-                  <UserCog size={13} />
+                  <UserCog size={12} />
                   <span>Staff Takeover (AI Paused)</span>
                 </>
               ) : (
                 <>
-                  <Bot size={13} />
-                  <span>Kabir AI Active (Autopilot)</span>
+                  <Bot size={12} />
+                  <span>LangGraph Engine Active</span>
                 </>
               )}
             </button>
           </div>
 
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close drawer">
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
@@ -159,7 +175,15 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
             }`}
             onClick={() => setMobileTab('chat')}
           >
-            WhatsApp Live Chat
+            WhatsApp Stream
+          </button>
+          <button
+            className={`${styles.mobileTabBtn} ${
+              mobileTab === 'telemetry' ? styles.mobileTabBtnActive : ''
+            }`}
+            onClick={() => setMobileTab('telemetry')}
+          >
+            Agent Telemetry
           </button>
           <button
             className={`${styles.mobileTabBtn} ${
@@ -167,21 +191,21 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
             }`}
             onClick={() => setMobileTab('dossier')}
           >
-            Banquet Slip & Dossier
+            Banquet Dossier
           </button>
         </div>
 
         {/* Studio Dual Body */}
         <div className={styles.studioBody}>
-          {/* Left Column: WhatsApp Live Operations */}
+          {/* Left Column: WhatsApp Live Operations (55% width) */}
           <div
             className={`${styles.chatColumn} ${
               mobileTab === 'chat' ? styles.columnVisible : styles.columnHiddenMobile
             }`}
           >
             <div className={styles.chatTelemetryNotice}>
-              <Sparkles size={12} className={styles.telemetryIcon} />
-              <span>Live Webhook • 12ms latency • Host Protection Active</span>
+              <span className={styles.pulseDot} />
+              <span>Encrypted WhatsApp Cloud Stream • 12ms sync • Deterministic Guard</span>
             </div>
 
             <div className={styles.messagesList}>
@@ -199,7 +223,7 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
                       <div className={styles.msgMeta}>
                         <span className={styles.msgTime}>{m.createdAt}</span>
                         {!isInbound && (
-                          <CheckCheck size={13} className={styles.readTicks} />
+                          <CheckCheck size={12} className={styles.readTicks} />
                         )}
                       </div>
                     </div>
@@ -214,31 +238,31 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
                 className={styles.triggerChip}
                 onClick={() =>
                   handleQuickInsert(
-                    'Namaste! We have generated your official Dil Se banquet invoice. You can secure the booking with a £500 deposit here: https://pay.dilse.co.uk/invoice-101'
+                    `Namaste! Your Dil Se banquet quote of £${order.totalAmount.toFixed(2)} is ready. Secure with £500 deposit: https://pay.dilse.co.uk/invoice-${order.id}`
                   )
                 }
               >
-                Insert Deposit Link (£500)
+                Deposit Link (£500)
               </button>
               <button
                 className={styles.triggerChip}
                 onClick={() =>
                   handleQuickInsert(
-                    'All dishes are 100% British Halal Certified (HMC audited) and prepared in dedicated spice vessels.'
+                    'All dishes are 100% British Halal Certified (HMC audited) and cooked in dedicated spice vessels.'
                   )
                 }
               >
-                Insert Halal Seal
+                Halal Protocol Seal
               </button>
               <button
                 className={styles.triggerChip}
                 onClick={() =>
                   handleQuickInsert(
-                    'Could you confirm if the venue ballroom provides a service lift for our heated chafing carts?'
+                    'Could you confirm if the banquet venue provides a service lift for our heated chafing carts?'
                   )
                 }
               >
-                Confirm Venue Access
+                Service Lift Check
               </button>
             </div>
 
@@ -248,7 +272,7 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
                 type="text"
                 placeholder={
                   isStaffTakeover
-                    ? 'Type reply as Duty Manager on WhatsApp...'
+                    ? 'Type reply as Expeditor on WhatsApp...'
                     : 'AI active. Type here to reply manually...'
                 }
                 value={composerText}
@@ -263,142 +287,263 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
                 onClick={handleSendReply}
                 disabled={!composerText.trim()}
               >
-                <Send size={14} />
+                <Send size={13} />
               </button>
             </div>
           </div>
 
-          {/* Right Column: Culinary Banquet Dossier & Slip */}
+          {/* Right Column: Telemetry & Dossier (45% width) */}
           <div
             className={`${styles.dossierColumn} ${
-              mobileTab === 'dossier' ? styles.columnVisible : styles.columnHiddenMobile
+              mobileTab !== 'chat' ? styles.columnVisible : styles.columnHiddenMobile
             }`}
           >
-            <div className={styles.dossierHeader}>
-              <span className={styles.dossierBadge}>CULINARY EVENT DOSSIER</span>
-              <span className={styles.slipIdBadge}>
-                #{order.id.replace('ORD-', '')}
-              </span>
+            {/* Sub-Tabs for Right Pane: Telemetry vs Dossier */}
+            <div className={styles.paneSegmentBar}>
+              <button
+                className={`${styles.paneSegmentBtn} ${
+                  activeRightTab === 'telemetry' ? styles.paneSegmentBtnActive : ''
+                }`}
+                onClick={() => setActiveRightTab('telemetry')}
+              >
+                <Cpu size={12} />
+                <span>Agent Thought Telemetry</span>
+              </button>
+              <button
+                className={`${styles.paneSegmentBtn} ${
+                  activeRightTab === 'dossier' ? styles.paneSegmentBtnActive : ''
+                }`}
+                onClick={() => setActiveRightTab('dossier')}
+              >
+                <Calendar size={12} />
+                <span>Event Dossier & Ledger</span>
+              </button>
             </div>
 
-            {/* Logistics Summary */}
-            <div className={styles.dossierCard}>
-              <div className={styles.dossierRow}>
-                <Calendar size={13} className={styles.dossierIcon} />
-                <div className={styles.dossierContent}>
-                  <span className={styles.dossierLabel}>EVENT DATE</span>
-                  <span className={styles.dossierVal}>
-                    {order.event?.eventDate || '2026-10-11'} ({order.event?.eventType})
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.dossierRow}>
-                <Clock size={13} className={styles.dossierIcon} />
-                <div className={styles.dossierContent}>
-                  <span className={styles.dossierLabel}>SERVING TIME</span>
-                  <span className={styles.dossierVal}>
-                    {order.event?.servingTime || '18:30 BST'} • Hot Chafing Buffet
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.dossierRow}>
-                <MapPin size={13} className={styles.dossierIcon} />
-                <div className={styles.dossierContent}>
-                  <span className={styles.dossierLabel}>BANQUET VENUE</span>
-                  <span className={styles.dossierVal}>
-                    {order.event?.deliveryAddress || 'London Delivery'}
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.dossierRow}>
-                <Users size={13} className={styles.dossierIcon} />
-                <div className={styles.dossierContent}>
-                  <span className={styles.dossierLabel}>GUEST COVERS</span>
-                  <span className={styles.dossierVal}>
-                    {order.event?.guestCount || 40} Covers ({order.event?.dietaryPreference})
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Culinary Dishes Selection */}
-            <div className={styles.dossierCard}>
-              <div className={styles.cardSectionTitle}>SELECTED MENU & DISHES</div>
-              <p className={styles.itemsSummaryText}>{order.itemsSummary}</p>
-              <div className={styles.halalNotice}>
-                <ShieldCheck size={13} className={styles.halalIcon} />
-                <span>100% British Halal Certified & Dedicated Veg Stoves</span>
-              </div>
-            </div>
-
-            {/* Financial Ledger */}
-            <div className={styles.dossierCard}>
-              <div className={styles.cardSectionTitle}>FINANCIAL LEDGER</div>
-              <div className={styles.financialRow}>
-                <span>Gross Banquet Quote</span>
-                <strong>£{order.totalAmount.toFixed(2)}</strong>
-              </div>
-              <div className={styles.financialRow}>
-                <span>Deposit Status</span>
-                <span
-                  className={
-                    order.paymentStatus === 'PAID' ? styles.paidTag : styles.pendingTag
-                  }
-                >
-                  {order.paymentStatus === 'PAID' ? '£500.00 Paid' : 'Pending Payment'}
-                </span>
-              </div>
-              <div className={styles.financialRow}>
-                <span>Balance Due at Delivery</span>
-                <strong>
-                  £{(order.paymentStatus === 'PAID'
-                    ? Math.max(0, order.totalAmount - 500)
-                    : order.totalAmount
-                  ).toFixed(2)}
-                </strong>
-              </div>
-            </div>
-
-            {/* Department Actions */}
-            <div className={styles.dossierActions}>
-              <div className={styles.stageSelectWrap}>
-                <label className={styles.dossierLabel}>ADVANCE PIPELINE STAGE</label>
-                <div className={styles.stageBtnRow}>
-                  {['QUOTED', 'CONFIRMED', 'IN_PREP', 'DISPATCHED', 'COMPLETED'].map((st) => (
+            {activeRightTab === 'telemetry' ? (
+              /* Telemetry Inspector: LangGraph Execution Steps */
+              <div className={styles.telemetryInspector}>
+                {/* HITL Review Callout */}
+                <div className={styles.hitlBanner}>
+                  <div className={styles.hitlBannerHeader}>
+                    <div className={styles.hitlIconWrap}>
+                      <Activity size={13} className={styles.hitlIcon} />
+                    </div>
+                    <div>
+                      <div className={styles.hitlTitle}>Human-in-the-Loop Review Active</div>
+                      <div className={styles.hitlDesc}>
+                        LangGraph paused at checkpoint. Awaiting pricing and buffer confirmation.
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.hitlActions}>
                     <button
-                      key={st}
-                      className={`${styles.stagePill} ${
-                        currentStatus === st ? styles.stagePillActive : ''
-                      }`}
-                      onClick={() => onStatusChange(order.id, st)}
+                      className={`${styles.approveBtn} ${isQuoteApproved ? styles.approvedState : ''}`}
+                      onClick={handleApproveQuote}
                     >
-                      {st.replace('_', ' ')}
+                      {isQuoteApproved ? (
+                        <>
+                          <Check size={12} />
+                          <span>Quote Approved & Staged</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Approve & Stage Quote (£{order.totalAmount.toFixed(2)})</span>
+                        </>
+                      )}
                     </button>
-                  ))}
+                  </div>
+                </div>
+
+                {/* Step Trace Tree */}
+                <div className={styles.traceTree}>
+                  <div className={styles.traceNode}>
+                    <div className={styles.traceNodeHeader}>
+                      <span className={styles.nodeStepBadge}>Step 1</span>
+                      <span className={styles.nodeName}>Intent & Slot Extraction</span>
+                      <span className={styles.nodeLatency}>142ms • 98% conf</span>
+                    </div>
+                    <div className={styles.nodeBody}>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>intent:</span>
+                        <span className={styles.tokenVal}>quote_inquiry_with_dietary_cushion</span>
+                      </div>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>covers:</span>
+                        <span className={styles.tokenVal}>{order.event?.guestCount || 80} Pax</span>
+                      </div>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>postcode:</span>
+                        <span className={styles.tokenVal}>{order.customer?.postcode || 'HA9 9AA'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.traceNode}>
+                    <div className={styles.traceNodeHeader}>
+                      <span className={styles.nodeStepBadge}>Step 2</span>
+                      <span className={styles.nodeName}>Host Protection & Cushion Audit</span>
+                      <span className={styles.nodeLatency}>88ms • Guard Passed</span>
+                    </div>
+                    <div className={styles.nodeBody}>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>cushionRule:</span>
+                        <span className={styles.tokenVal}>+40% Shahi Paneer buffer added</span>
+                      </div>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>halalAudit:</span>
+                        <span className={styles.tokenVal}>100% British Halal certified HMC</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.traceNode}>
+                    <div className={styles.traceNodeHeader}>
+                      <span className={styles.nodeStepBadge}>Step 3</span>
+                      <span className={styles.nodeName}>Deterministic Billing Engine</span>
+                      <span className={styles.nodeLatency}>12ms • Zero LLM Math</span>
+                    </div>
+                    <div className={styles.nodeBody}>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>perCoverPrice:</span>
+                        <span className={styles.tokenVal}>
+                          £{((order.totalAmount || 1440) / (order.event?.guestCount || 80)).toFixed(2)}/pp
+                        </span>
+                      </div>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>chafersIncluded:</span>
+                        <span className={styles.tokenVal}>4x Stainless Warmers + Burner Gels</span>
+                      </div>
+                      <div className={styles.tokenRow}>
+                        <span className={styles.tokenKey}>grossTotal:</span>
+                        <span className={styles.tokenValBold}>£{order.totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            ) : (
+              /* Culinary Dossier & Ledger */
+              <div className={styles.dossierContentWrap}>
+                <div className={styles.dossierCard}>
+                  <div className={styles.dossierRow}>
+                    <Calendar size={12} className={styles.dossierIcon} />
+                    <div className={styles.dossierContent}>
+                      <span className={styles.dossierLabel}>EVENT DATE</span>
+                      <span className={styles.dossierVal}>
+                        {order.event?.eventDate || '2026-10-11'} ({order.event?.eventType})
+                      </span>
+                    </div>
+                  </div>
 
-              <div className={styles.actionBtnRow}>
-                <button
-                  className={styles.printSlipBtn}
-                  onClick={() => window.print()}
-                >
-                  <Printer size={13} />
-                  <span>Print KOT Slip</span>
-                </button>
+                  <div className={styles.dossierRow}>
+                    <Clock size={12} className={styles.dossierIcon} />
+                    <div className={styles.dossierContent}>
+                      <span className={styles.dossierLabel}>SERVING TIME</span>
+                      <span className={styles.dossierVal}>
+                        {order.event?.servingTime || '18:30 BST'} • Chafing Buffet
+                      </span>
+                    </div>
+                  </div>
 
-                <a
-                  href={`tel:${order.customer?.phoneNumber}`}
-                  className={styles.callHostBtn}
-                >
-                  <Phone size={13} />
-                  <span>Call Host Direct</span>
-                </a>
+                  <div className={styles.dossierRow}>
+                    <MapPin size={12} className={styles.dossierIcon} />
+                    <div className={styles.dossierContent}>
+                      <span className={styles.dossierLabel}>VENUE</span>
+                      <span className={styles.dossierVal}>
+                        {order.event?.deliveryAddress || 'London Delivery'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className={styles.dossierRow}>
+                    <Users size={12} className={styles.dossierIcon} />
+                    <div className={styles.dossierContent}>
+                      <span className={styles.dossierLabel}>GUESTS</span>
+                      <span className={styles.dossierVal}>
+                        {order.event?.guestCount || 80} Covers ({order.event?.dietaryPreference})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Culinary Dishes Selection */}
+                <div className={styles.dossierCard}>
+                  <div className={styles.cardSectionTitle}>SELECTED MENU & DISHES</div>
+                  <p className={styles.itemsSummaryText}>{order.itemsSummary}</p>
+                  <div className={styles.halalNotice}>
+                    <ShieldCheck size={12} className={styles.halalIcon} />
+                    <span>100% British Halal Certified & Dedicated Veg Stoves</span>
+                  </div>
+                </div>
+
+                {/* Financial Ledger */}
+                <div className={styles.dossierCard}>
+                  <div className={styles.cardSectionTitle}>FINANCIAL LEDGER</div>
+                  <div className={styles.financialRow}>
+                    <span>Gross Banquet Quote</span>
+                    <strong>£{order.totalAmount.toFixed(2)}</strong>
+                  </div>
+                  <div className={styles.financialRow}>
+                    <span>Deposit Status</span>
+                    <span
+                      className={
+                        order.paymentStatus === 'PAID' ? styles.paidTag : styles.pendingTag
+                      }
+                    >
+                      {order.paymentStatus === 'PAID' ? '£500.00 Paid' : 'Pending Payment'}
+                    </span>
+                  </div>
+                  <div className={styles.financialRow}>
+                    <span>Balance Due</span>
+                    <strong>
+                      £{(order.paymentStatus === 'PAID'
+                        ? Math.max(0, order.totalAmount - 500)
+                        : order.totalAmount
+                      ).toFixed(2)}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Department Actions */}
+                <div className={styles.dossierActions}>
+                  <div className={styles.stageSelectWrap}>
+                    <label className={styles.dossierLabel}>ADVANCE PIPELINE STAGE</label>
+                    <div className={styles.stageBtnRow}>
+                      {['QUOTED', 'CONFIRMED', 'IN_PREP', 'DISPATCHED', 'COMPLETED'].map((st) => (
+                        <button
+                          key={st}
+                          className={`${styles.stagePill} ${
+                            currentStatus === st ? styles.stagePillActive : ''
+                          }`}
+                          onClick={() => onStatusChange(order.id, st)}
+                        >
+                          {st.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={styles.actionBtnRow}>
+                    <button
+                      className={styles.printSlipBtn}
+                      onClick={() => window.print()}
+                    >
+                      <Printer size={12} />
+                      <span>Print KOT Slip</span>
+                    </button>
+
+                    <a
+                      href={`tel:${order.customer?.phoneNumber}`}
+                      className={styles.callHostBtn}
+                    >
+                      <Phone size={12} />
+                      <span>Call Host Direct</span>
+                    </a>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

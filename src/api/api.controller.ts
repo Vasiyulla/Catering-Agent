@@ -1,28 +1,35 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Logger } from '@nestjs/common';
-import { MenuCacheService } from '../airtable/menu-cache.service.js';
+import { Controller, Get, Post, Patch, Body, Param, Query, Logger, Sse, MessageEvent, Optional } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { MenuService } from '../menu/menu.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { BillingEngineService } from '../agent/billing/billing-engine.service.js';
 import { HostProtectionService } from '../agent/protection/host-protection.service.js';
-
-interface CalculateQuoteDto {
-  orderMode?: 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS';
-  packageId?: string;
-  guestCount?: number;
-  postcode?: string;
-  dietaryPreference?: string;
-  trayItems?: Array<{ dishQuery: string; quantity: number }>;
-}
+import { EventsService } from '../events/events.service.js';
+import { CalculateQuoteDto } from './dto/calculate-quote.dto.js';
 
 @Controller('api')
 export class ApiController {
   private readonly logger = new Logger(ApiController.name);
 
   constructor(
-    private readonly menuCacheService: MenuCacheService,
+    private readonly menuService: MenuService,
     private readonly databaseService: DatabaseService,
     private readonly billingEngineService: BillingEngineService,
     private readonly hostProtectionService: HostProtectionService,
+    @Optional()
+    private readonly eventsService?: EventsService,
   ) {}
+
+  /**
+   * SSE Stream endpoint: Pushes real-time order, audit and agent telemetry events
+   */
+  @Sse('events')
+  streamEvents(): Observable<MessageEvent> {
+    if (!this.eventsService) {
+      throw new Error('EventsService is not configured');
+    }
+    return this.eventsService.getStream();
+  }
 
   /**
    * GET /api/menu
@@ -31,8 +38,8 @@ export class ApiController {
   @Get('menu')
   getMenu() {
     return {
-      packages: this.menuCacheService.getPackages(),
-      items: this.menuCacheService.getMenuItems(),
+      packages: this.menuService.getPackages(),
+      items: this.menuService.getMenuItems(),
     };
   }
 
@@ -129,6 +136,24 @@ export class ApiController {
   getMessages(@Param('phone') phone: string) {
     return {
       messages: this.databaseService.getMessagesForPhone(phone),
+    };
+  }
+
+  /**
+   * POST /api/messages/:phone
+   * Dispatches and records an outbound manual reply from dashboard staff
+   */
+  @Post('messages/:phone')
+  async sendMessage(@Param('phone') phone: string, @Body('messageText') text: string) {
+    await this.databaseService.logMessage({
+      phoneNumber: phone,
+      direction: 'OUTBOUND',
+      messageText: text || '',
+    });
+    return {
+      success: true,
+      phoneNumber: phone,
+      text,
     };
   }
 

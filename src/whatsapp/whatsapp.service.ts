@@ -169,4 +169,104 @@ export class WhatsAppService {
       return this.sendTextMessage(to, `${bodyText}\n\nOptions:\n${buttons.map((b) => `• ${b.title}`).join('\n')}`);
     }
   }
+
+  /**
+   * Downloads binary media (such as audio voice notes) from Meta Graph API
+   */
+  public async downloadMediaBuffer(mediaId: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    if (!this.isConfigured || !mediaId) {
+      return null;
+    }
+
+    try {
+      // 1. Retrieve direct media download URL from Meta
+      const metaUrl = `https://graph.facebook.com/v21.0/${mediaId}`;
+      const metaRes = await axios.get(metaUrl, {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+      });
+
+      const downloadUrl = metaRes.data?.url;
+      const mimeType = metaRes.data?.mime_type || 'audio/ogg';
+      if (!downloadUrl) return null;
+
+      // 2. Download raw media bytes with authentication header
+      const binaryRes = await axios.get(downloadUrl, {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+        responseType: 'arraybuffer',
+      });
+
+      return {
+        buffer: Buffer.from(binaryRes.data),
+        mimeType,
+      };
+    } catch (err: unknown) {
+      this.logger.error(`Failed to download WhatsApp media ${mediaId}: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Transcribes voice note audio buffer using Gemini Multimodal or OpenAI Whisper
+   */
+  public async transcribeAudio(audioBuffer: Buffer, mimeType = 'audio/ogg'): Promise<string> {
+    const geminiKey = this.configService.get<string>('ai.geminiApiKey');
+    const openaiKey = this.configService.get<string>('ai.openaiApiKey');
+
+    if (geminiKey) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+        const base64Audio = audioBuffer.toString('base64');
+        const res = await axios.post(
+          url,
+          {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: 'You are an Indian catering concierge. Transcribe the following customer WhatsApp voice note verbatim into text. If the speech is in Hindi, Gujarati, Punjabi, or Hinglish, transcribe the meaning clearly into Roman script / English so the catering coordinator can fulfill the feast order.',
+                  },
+                  {
+                    inlineData: {
+                      mimeType: mimeType.split(';')[0].trim(),
+                      data: base64Audio,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          { headers: { 'Content-Type': 'application/json' } },
+        );
+
+        const candidateText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText) {
+          return candidateText.trim();
+        }
+      } catch (err: unknown) {
+        this.logger.warn(`Gemini audio transcription failed: ${(err as Error).message}`);
+      }
+    }
+
+    if (openaiKey) {
+      try {
+        const formData = new FormData();
+        const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+        formData.append('file', blob, 'voice_note.ogg');
+        formData.append('model', 'whisper-1');
+
+        const res = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+          headers: {
+            Authorization: `Bearer ${openaiKey}`,
+          },
+        });
+        if (res.data?.text) {
+          return res.data.text.trim();
+        }
+      } catch (err: unknown) {
+        this.logger.warn(`OpenAI Whisper transcription failed: ${(err as Error).message}`);
+      }
+    }
+
+    return '';
+  }
 }

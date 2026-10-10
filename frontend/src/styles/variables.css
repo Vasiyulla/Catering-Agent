@@ -1,42 +1,56 @@
 :root {
-  /* Enterprise Precision Palette: Clean Slate & Crisp Linen with Royal Emerald & Gold */
+  /* ==========================================================================
+     DIL SE ENTERPRISE DESIGN SYSTEM - CALM SLATE & ROYAL PRECISION
+     Inspired by Linear, Stripe, and Retool
+     ========================================================================== */
+
+  /* Neutral Surface Palette */
   --color-canvas: #f8fafc;
   --color-canvas-subtle: #f1f5f9;
   --color-card: #ffffff;
+  --color-card-elevated: #ffffff;
   
+  /* Hairline Borders */
   --color-border: #e2e8f0;
-  --color-border-subtle: #edf2f7;
+  --color-border-subtle: #f1f5f9;
   --color-border-hover: #cbd5e1;
+  --color-border-focus: #94a3b8;
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
-  --color-text-dim: #94a3b8;
+  /* Restrained Typography Tones */
+  --color-text-primary: #0f172a;    /* Slate 900 */
+  --color-text-secondary: #334155;  /* Slate 700 */
+  --color-text-muted: #64748b;      /* Slate 500 */
+  --color-text-dim: #94a3b8;        /* Slate 400 */
 
-  /* Brand Accents (Restrained, High-Precision Luxury) */
+  /* Brand Accents: Royal Emerald & Warm Gold (Restrained & Muted) */
   --color-emerald: #0c2b22;
   --color-emerald-dark: #061b15;
-  --color-emerald-light: #ecfdf5;
-  --color-emerald-border: #a7f3d0;
-  --color-emerald-text: #065f46;
+  --color-emerald-light: #f0fdf4;
+  --color-emerald-border: #dcfce7;
+  --color-emerald-text: #166534;
 
-  --color-gold: #b45309;
-  --color-gold-accent: #c89d42;
-  --color-gold-light: #fffbeb;
-  --color-gold-border: #fde68a;
-  --color-gold-border-subtle: rgba(200, 157, 66, 0.2);
+  --color-gold: #92400e;
+  --color-gold-accent: #b45309;
+  --color-gold-light: #fefce8;
+  --color-gold-border: #fef08a;
+  --color-gold-border-subtle: rgba(180, 83, 9, 0.15);
 
-  --color-saffron: #d9531e;
+  --color-saffron: #c2410c;
   --color-saffron-light: #fff7ed;
   --color-saffron-border: #ffedd5;
-  --color-saffron-text: #c2410c;
+  --color-saffron-text: #9a3412;
 
   --color-danger: #dc2626;
   --color-danger-light: #fef2f2;
-  --color-danger-border: #fecaca;
-  --color-danger-text: #b91c1c;
+  --color-danger-border: #fee2e2;
+  --color-danger-text: #991b1b;
 
-  /* Compatibility with existing tokens */
+  --color-blue: #1d4ed8;
+  --color-blue-light: #eff6ff;
+  --color-blue-border: #dbeafe;
+  --color-blue-text: #1e40af;
+
+  /* Material Tokens for Backward Compatibility */
   --md-sys-color-primary-container: #0c2b22;
   --md-sys-color-surface: var(--color-canvas);
   --md-sys-color-on-surface: var(--color-text-primary);
@@ -47,28 +61,27 @@
   --color-parchment-deep: var(--color-canvas-subtle);
   --color-parchment-border: var(--color-border);
 
-  /* Typography */
+  /* Typography Stacks */
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Radii (Modern Crisp 6px - 8px) */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
+  /* Radii (Clean 4px - 8px Precision) */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
   --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-xl: 14px;
   --radius-pill: 9999px;
 
-  /* Shadows (Subtle, Crisp, Non-Muddy) */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
-  --shadow-drawer: -4px 0 24px rgba(15, 23, 42, 0.15);
+  /* Enterprise Shadows: Flat, Micro-Hairline Ambient */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.07), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+  --shadow-drawer: -4px 0 24px rgba(15, 23, 42, 0.12);
 
   /* Transitions */
-  --transition-fast: 0.12s ease;
-  --transition-normal: 0.18s ease;
-  --transition-spring: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }

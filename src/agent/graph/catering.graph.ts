@@ -3,8 +3,7 @@ import { Logger } from '@nestjs/common';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { CateringStateAnnotation, CateringStateType, CateringStateUpdate } from './catering.state.js';
-import { MenuCacheService } from '../../airtable/menu-cache.service.js';
-import { AirtableService } from '../../airtable/airtable.service.js';
+import { MenuService as MenuCacheService } from '../../menu/menu.service.js';
 import { DatabaseService } from '../../database/database.service.js';
 import { BillingEngineService, QuoteCalculationResult } from '../billing/billing-engine.service.js';
 import { HostProtectionService, HostProtectionAudit } from '../protection/host-protection.service.js';
@@ -217,7 +216,6 @@ function buildDeterministicFallback(params: {
 export function buildCateringGraph(
   llm: BaseChatModel | null,
   menuCacheService: MenuCacheService,
-  airtableService?: AirtableService,
   databaseService?: DatabaseService,
   billingEngine?: BillingEngineService,
   hostProtectionService?: HostProtectionService,
@@ -660,38 +658,6 @@ LATEST USER MESSAGE:
         }
       }
 
-      // Optional secondary sync to Airtable (resilient, non-blocking)
-      if (airtableService) {
-        try {
-          const customer = await airtableService.findOrCreateCustomer(
-            state.customerName || 'WhatsApp Customer',
-            state.phoneNumber,
-            updatedSlots.deliveryLocation,
-          );
-
-          const event = await airtableService.createEvent({
-            customerId: customer.id || state.phoneNumber,
-            eventType: updatedSlots.eventType || (orderMode === 'FEAST_PACKAGE' ? 'Buffet Catering' : 'Party Trays Order'),
-            eventDate: updatedSlots.eventDate || new Date().toISOString(),
-            guestCount: updatedSlots.guestCount || (orderMode === 'FEAST_PACKAGE' ? 20 : 10),
-            deliveryAddress: updatedSlots.deliveryLocation || 'London',
-            dietarySplit: updatedSlots.dietaryPreference || 'Mixed',
-            status: 'Quoted',
-          });
-
-          await airtableService.createOrder({
-            customerId: customer.id || state.phoneNumber,
-            eventId: event.id || 'EVT-001',
-            orderStatus: 'Confirmed',
-            estimatedTotal: calculatedTotal || 250,
-            itemsSummary: `Mode: ${orderMode} | Selection: ${updatedSlots.selectedPackageId || 'Bulk Trays'}`,
-          });
-          logger.log(`✅ [AIRTABLE_SYNC] Synced booking to Airtable.`);
-        } catch (atErr: unknown) {
-          logger.warn(`Secondary Airtable sync skipped or failed: ${(atErr as Error).message}`);
-        }
-      }
-
       replyText += '\n\n🎉 *Order Confirmed!* Your booking has been locked in our system. Our catering manager will contact you shortly to coordinate serving logistics.';
       splitBubbles.push('🎉 *Order Confirmed!* Your booking has been locked in our system. Our catering manager will contact you shortly to coordinate serving logistics.');
       buttons = [{ id: 'btn_support', title: '💬 Contact Team' }];
@@ -701,13 +667,6 @@ LATEST USER MESSAGE:
     if (requiresHandoff && !state.humanHandoffRequired) {
       if (databaseService) {
         await databaseService.recordHumanHandoff(state.phoneNumber, handoffReason || 'Customer requested escalation');
-      }
-      if (airtableService) {
-        try {
-          await airtableService.markHumanHandoffRequired(state.phoneNumber, handoffReason || 'Customer requested escalation');
-        } catch {
-          // non-blocking
-        }
       }
     }
 

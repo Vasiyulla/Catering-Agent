@@ -7,15 +7,18 @@ import {
   DashboardStats,
 } from './types/index.ts';
 import { api } from './services/api.ts';
-import { Sidebar, AdminViewType } from './components/admin/Sidebar.tsx';
-import { TopBar } from './components/admin/TopBar.tsx';
-import { StatsBar } from './components/admin/StatsBar.tsx';
-import { OrderKanban } from './components/admin/OrderKanban.tsx';
-import { ConversationalDrawer } from './components/admin/ConversationalDrawer.tsx';
-import { KitchenPrepSheet } from './components/admin/KitchenPrepSheet.tsx';
-import { EscalationsView } from './components/admin/EscalationsView.tsx';
-import { MenuCatalogView } from './components/admin/MenuCatalogView.tsx';
-import { LogisticsView } from './components/admin/LogisticsView.tsx';
+import {
+  Sidebar,
+  AdminViewType,
+  TopBar,
+  StatsBar,
+  OrderKanban,
+  ConversationalDrawer,
+  KitchenPrepSheet,
+  EscalationsView,
+  MenuCatalogView,
+  LogisticsView,
+} from './components/admin/index.ts';
 import styles from './App.module.css';
 
 export const App: React.FC = () => {
@@ -36,6 +39,7 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     api.getMenu().then((res) => {
@@ -47,11 +51,43 @@ export const App: React.FC = () => {
     api.getStats().then((res) => setStats(res));
   }, []);
 
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 4500);
+  }, []);
+
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000); // 10s live pulse
-    return () => clearInterval(interval);
-  }, [loadData]);
+
+    // Subscribe to SSE real-time push stream
+    const unsubscribe = api.subscribeToEvents((event) => {
+      if (event.type === 'ORDER_CREATED') {
+        loadData();
+        showToast(`⚡ New Order: ${event.payload?.id || 'Incoming'} (£${event.payload?.totalAmount || '---'})`);
+      } else if (event.type === 'ORDER_UPDATED') {
+        loadData();
+      } else if (event.type === 'HANDOFF_CREATED') {
+        loadData();
+        showToast(`🚨 New Escalation: ${event.payload?.reason || 'Human Assistance Needed'}`);
+      } else if (event.type === 'HANDOFF_RESOLVED') {
+        loadData();
+      } else if (event.type === 'MESSAGE_LOGGED') {
+        loadData();
+        if (event.payload?.direction === 'INBOUND') {
+          showToast(`💬 WhatsApp Message from ${event.payload?.phoneNumber}`);
+        }
+      }
+    });
+
+    // Fallback heartbeat polling
+    const interval = setInterval(loadData, 20000);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [loadData, showToast]);
 
   // Global hotkey: '/' focuses the search bar
   useEffect(() => {
@@ -149,7 +185,13 @@ export const App: React.FC = () => {
             </>
           )}
 
-          {currentView === 'kitchen' && <KitchenPrepSheet />}
+          {currentView === 'kitchen' && (
+            <KitchenPrepSheet
+              orders={orders}
+              onSelectOrder={setSelectedOrder}
+              onAdvanceStatus={handleAdvanceStatus}
+            />
+          )}
 
           {currentView === 'escalations' && (
             <EscalationsView
@@ -180,6 +222,14 @@ export const App: React.FC = () => {
             <span>Michelin-Grade Execution & British Halal Certified</span>
           </div>
         </footer>
+
+        {/* Real-time SSE Live Toast Notification */}
+        {toastMessage && (
+          <div className={styles.liveToast}>
+            <div className={styles.liveToastPulse} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { MenuCacheService } from '../../airtable/menu-cache.service.js';
+import { MenuService as MenuCacheService } from '../../menu/menu.service.js';
 import { BillingEngineService } from '../billing/billing-engine.service.js';
 
 export function createCateringTools(

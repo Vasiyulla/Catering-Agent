@@ -1,0 +1,30 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "123",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "447123456789",
+              "phone_number_id": "123"
+            },
+            "messages": [
+              {
+                "from": "447123456789",
+                "id": "wamid.test99999",
+                "timestamp": "1710000000",
+                "type": "text",
+                "text": {
+                  "body": "Namaste, we need catering for 80 guests in Wembley."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

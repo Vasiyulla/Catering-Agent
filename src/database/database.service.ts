@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { EventsService } from '../events/events.service.js';
 
 export interface EnterpriseCustomer {
   id: string;
@@ -76,7 +77,11 @@ export class DatabaseService implements OnModuleInit {
   private readonly auditLog: EnterpriseMessageAudit[] = [];
   private readonly handoffLog: EnterpriseHandoff[] = [];
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional()
+    private readonly eventsService?: EventsService,
+  ) {
     this.loadFromDisk();
   }
 
@@ -279,6 +284,7 @@ export class DatabaseService implements OnModuleInit {
 
     this.saveToDisk();
     this.logger.log(`[DB] Created confirmed order ${id} (£${data.totalAmount}) for customer ${data.customerId}`);
+    this.eventsService?.emit('ORDER_CREATED', order);
     return order;
   }
 
@@ -301,6 +307,7 @@ export class DatabaseService implements OnModuleInit {
 
     this.auditLog.push(entry);
     this.saveToDisk();
+    this.eventsService?.emit('MESSAGE_LOGGED', entry);
   }
 
   /**
@@ -319,6 +326,7 @@ export class DatabaseService implements OnModuleInit {
     this.handoffLog.push(entry);
     this.saveToDisk();
     this.logger.warn(`🚨 [HUMAN_HANDOFF_RECORDED] Phone: ${phoneNumber} | Reason: ${reason}`);
+    this.eventsService?.emit('HANDOFF_CREATED', entry);
   }
 
   /**
@@ -344,6 +352,7 @@ export class DatabaseService implements OnModuleInit {
       this.events.get(order.eventId)!.status = status as any;
     }
     this.saveToDisk();
+    this.eventsService?.emit('ORDER_UPDATED', { orderId, status });
     return true;
   }
 
@@ -365,7 +374,10 @@ export class DatabaseService implements OnModuleInit {
         resolved = true;
       }
     }
-    if (resolved) this.saveToDisk();
+    if (resolved) {
+      this.saveToDisk();
+      this.eventsService?.emit('HANDOFF_RESOLVED', { phoneNumber });
+    }
     return resolved;
   }
 
