@@ -91,6 +91,30 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
     );
   };
 
+  const handleInsertMenuCard = async () => {
+    try {
+      const cardRes = await api.generateMenuCard({
+        hostName: order.customer?.name || 'Valued Guest',
+        guestCount: order.event?.guestCount || 50,
+        eventDate: order.event?.eventDate || 'Upcoming Banquet',
+        totalAmount: order.totalAmount,
+        packageId: order.selectedPackageId || 'MAHARAJA_FEAST',
+      });
+
+      if (cardRes.success && cardRes.cardData?.whatsappText) {
+        setComposerText(cardRes.cardData.whatsappText);
+      } else {
+        setComposerText(
+          `✨ *DIL SE CULINARY OPERATIONS • ROYAL FEAST MENU* ✨\n🏛️ London Hub NW10 • 100% British Halal Certified\n\n🍢 *STARTERS*: Amritsari Fish Tikka, Seekh Kebab, Paneer Tikka\n🥘 *MAINS*: Railway Lamb Curry, Butter Chicken, Paneer Butter Masala\n🍚 *RICE*: Lucknowi Lamb Dum Biryani\n🍮 *DESSERT*: Warm Shahi Gulab Jamun\n\n📦 Large Chafing Trays (Serves 10 covers each)\nTotal: £${order.totalAmount.toFixed(2)} all-inclusive.\nCustomise your tray selection: https://dilse.co.uk/configurator`
+        );
+      }
+    } catch {
+      setComposerText(
+        `✨ *DIL SE CULINARY OPERATIONS • ROYAL FEAST MENU* ✨\nTotal: £${order.totalAmount.toFixed(2)} all-inclusive.\nCustomise your tray selection: https://dilse.co.uk/configurator`
+      );
+    }
+  };
+
   return (
     <div className={styles.drawerBackdrop} onClick={onClose}>
       <div className={styles.drawer} onClick={(e) => e.stopPropagation()}>
@@ -213,6 +237,13 @@ export const ConversationalDrawer: React.FC<ConversationalDrawerProps> = ({
 
             {/* Quick Action Triggers */}
             <div className={styles.quickTriggers}>
+              <button
+                className={styles.triggerChip}
+                onClick={handleInsertMenuCard}
+                title="Insert formatted Royal Banquet Menu Card into WhatsApp reply"
+              >
+                ✨ Royal Menu Card
+              </button>
               <button
                 className={styles.triggerChip}
                 onClick={() =>

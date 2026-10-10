@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Clock, RefreshCw, ChevronRight, Menu } from 'lucide-react';
+import { Search, Clock, RefreshCw, ChevronRight, Menu, Sparkles } from 'lucide-react';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -10,6 +10,7 @@ interface TopBarProps {
   onFilterChange: (f: string) => void;
   onRefresh: () => void;
   onToggleSidebar?: () => void;
+  onOpenConfigurator?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -20,6 +21,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onFilterChange,
   onRefresh,
   onToggleSidebar,
+  onOpenConfigurator,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -106,6 +108,17 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className={styles.rightGroup}>
+        {onOpenConfigurator && (
+          <button
+            className={styles.configuratorBtn}
+            onClick={onOpenConfigurator}
+            title="Open Interactive Customer Tray & Menu Configurator"
+          >
+            <Sparkles size={13} className={styles.configIcon} />
+            <span className={styles.configBtnText}>Tray Configurator</span>
+          </button>
+        )}
+
         <div className={styles.clockBadge}>
           <Clock size={12} className={styles.clockIcon} />
           <span className={styles.clockText}>{timeStr || 'London Time'}</span>

@@ -18,6 +18,7 @@ import {
   EscalationsView,
   MenuCatalogView,
   LogisticsView,
+  TrayConfiguratorModal,
 } from './components/admin/index.ts';
 import styles from './App.module.css';
 
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isConfiguratorOpen, setIsConfiguratorOpen] = useState<boolean>(false);
 
   const loadData = useCallback(() => {
     api.getMenu().then((res) => {
@@ -159,6 +161,7 @@ export const App: React.FC = () => {
           onFilterChange={setActiveFilter}
           onRefresh={loadData}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+          onOpenConfigurator={() => setIsConfiguratorOpen(true)}
         />
 
         <div className={styles.contentContainer}>
@@ -211,10 +214,27 @@ export const App: React.FC = () => {
             />
           )}
 
-          {currentView === 'menu_catalog' && <MenuCatalogView items={menuItems} />}
+          {currentView === 'menu_catalog' && (
+            <MenuCatalogView
+              items={menuItems}
+              onMenuUpdated={loadData}
+              onOpenConfigurator={() => setIsConfiguratorOpen(true)}
+            />
+          )}
 
           {currentView === 'logistics' && <LogisticsView orders={orders} />}
         </div>
+
+        {/* Interactive Customer Tray & Menu Configurator Modal */}
+        <TrayConfiguratorModal
+          isOpen={isConfiguratorOpen}
+          onClose={() => setIsConfiguratorOpen(false)}
+          menuItems={menuItems}
+          onOrderCreated={() => {
+            loadData();
+            showToast('✨ Royal Tray Banquet Order successfully booked and synced to live pipeline!');
+          }}
+        />
 
         {/* Velvet Scrim Dual-Pane Conversational Drawer */}
         <ConversationalDrawer

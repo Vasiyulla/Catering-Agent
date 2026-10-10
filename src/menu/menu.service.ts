@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 export interface MenuItem {
   id: string;
@@ -33,11 +35,49 @@ export interface CateringPackage {
 @Injectable()
 export class MenuService {
   private readonly logger = new Logger(MenuService.name);
+  private readonly storageFilePath = 'data/menu-catalog.json';
   private menuItems: MenuItem[] = [];
   private packages: CateringPackage[] = [];
 
   constructor() {
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk(): void {
+    if (existsSync(this.storageFilePath)) {
+      try {
+        const raw = readFileSync(this.storageFilePath, 'utf-8');
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.menuItems) && data.menuItems.length > 0) {
+          this.menuItems = data.menuItems;
+        }
+        if (Array.isArray(data.packages) && data.packages.length > 0) {
+          this.packages = data.packages;
+        }
+        if (this.menuItems.length > 0) {
+          this.logger.log(`📦 Loaded menu catalog from ${this.storageFilePath} (${this.menuItems.length} items, ${this.packages.length} packages).`);
+          return;
+        }
+      } catch (err: unknown) {
+        this.logger.warn(`Could not parse menu file, falling back to defaults: ${(err as Error).message}`);
+      }
+    }
     this.seedDefaultMenu();
+    this.saveToDisk();
+  }
+
+  private saveToDisk(): void {
+    if (process.env.NODE_ENV === 'test') return;
+    try {
+      mkdirSync(dirname(this.storageFilePath), { recursive: true });
+      writeFileSync(
+        this.storageFilePath,
+        JSON.stringify({ menuItems: this.menuItems, packages: this.packages }, null, 2),
+        'utf-8',
+      );
+    } catch (err: unknown) {
+      this.logger.warn(`Could not save menu catalog to disk: ${(err as Error).message}`);
+    }
   }
 
   private seedDefaultMenu(): void {
@@ -401,6 +441,58 @@ export class MenuService {
 
   public getItemById(itemId: string): MenuItem | undefined {
     return this.menuItems.find((item) => item.id.toUpperCase() === itemId.toUpperCase());
+  }
+
+  public addMenuItem(data: Omit<MenuItem, 'id'>): MenuItem {
+    const id = `MENU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+    const newItem: MenuItem = {
+      id,
+      ...data,
+      available: data.available !== undefined ? data.available : true,
+    };
+    this.menuItems.push(newItem);
+    this.saveToDisk();
+    this.logger.log(`[MENU] Added new menu dish: ${newItem.name} (${newItem.id})`);
+    return newItem;
+  }
+
+  public updateMenuItem(id: string, updates: Partial<MenuItem>): MenuItem | null {
+    const index = this.menuItems.findIndex((item) => item.id.toUpperCase() === id.toUpperCase());
+    if (index === -1) return null;
+
+    this.menuItems[index] = {
+      ...this.menuItems[index],
+      ...updates,
+      id: this.menuItems[index].id, // Prevent ID mutation
+    };
+    this.saveToDisk();
+    this.logger.log(`[MENU] Updated menu dish: ${this.menuItems[index].name} (${id})`);
+    return this.menuItems[index];
+  }
+
+  public deleteMenuItem(id: string): boolean {
+    const initialLen = this.menuItems.length;
+    this.menuItems = this.menuItems.filter((item) => item.id.toUpperCase() !== id.toUpperCase());
+    if (this.menuItems.length < initialLen) {
+      this.saveToDisk();
+      this.logger.log(`[MENU] Deleted menu dish: ${id}`);
+      return true;
+    }
+    return false;
+  }
+
+  public updatePackage(id: string, updates: Partial<CateringPackage>): CateringPackage | null {
+    const index = this.packages.findIndex((pkg) => pkg.id.toUpperCase() === id.toUpperCase());
+    if (index === -1) return null;
+
+    this.packages[index] = {
+      ...this.packages[index],
+      ...updates,
+      id: this.packages[index].id,
+    };
+    this.saveToDisk();
+    this.logger.log(`[MENU] Updated feast package: ${this.packages[index].name} (${id})`);
+    return this.packages[index];
   }
 }
 

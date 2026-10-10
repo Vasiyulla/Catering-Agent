@@ -269,4 +269,107 @@ export const api = {
       return { status: 'error', error: (err as Error).message };
     }
   },
+
+  /**
+   * Admin: Adds a new menu dish to catalog
+   */
+  async createMenuItem(itemData: Partial<MenuItem>): Promise<{ success: boolean; item?: MenuItem }> {
+    try {
+      const res = await fetch(`${API_BASE}/menu/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData),
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('[API] Failed to create menu item:', err);
+      return { success: false };
+    }
+  },
+
+  /**
+   * Admin: Updates pricing, availability or details of an existing menu dish
+   */
+  async updateMenuItem(id: string, updates: Partial<MenuItem>): Promise<{ success: boolean; item?: MenuItem }> {
+    try {
+      const res = await fetch(`${API_BASE}/menu/items/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      return await res.json();
+    } catch (err) {
+      console.error(`[API] Failed to update menu item ${id}:`, err);
+      return { success: false };
+    }
+  },
+
+  /**
+   * Admin: Deletes/archives a menu dish
+   */
+  async deleteMenuItem(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/menu/items/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(`[API] Failed to delete menu item ${id}:`, err);
+      return false;
+    }
+  },
+
+  /**
+   * Admin: Updates feast package rates and inclusions
+   */
+  async updatePackage(id: string, updates: Partial<CateringPackage>): Promise<{ success: boolean; package?: CateringPackage }> {
+    try {
+      const res = await fetch(`${API_BASE}/menu/packages/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      return await res.json();
+    } catch (err) {
+      console.error(`[API] Failed to update package ${id}:`, err);
+      return { success: false };
+    }
+  },
+
+  /**
+   * Generates royal visual menu card payload and WhatsApp-formatted text
+   */
+  async generateMenuCard(payload: {
+    hostName?: string;
+    guestCount?: number;
+    eventDate?: string;
+    orderMode?: 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS';
+    packageId?: string;
+    selectedItems?: Array<{ id: string; name?: string; category?: string; quantity: number }>;
+    totalAmount?: number;
+    dietaryNote?: string;
+  }): Promise<{
+    success: boolean;
+    cardData?: {
+      hostName: string;
+      guestCount: number;
+      eventDate: string;
+      totalAmount: number;
+      depositAmount: string;
+      itemsByCategory: Record<string, string[]>;
+      whatsappText: string;
+    };
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/menu/generate-card`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('[API] Failed to generate menu card:', err);
+      return { success: false };
+    }
+  },
 };

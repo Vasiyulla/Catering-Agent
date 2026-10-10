@@ -20,11 +20,18 @@ export interface MenuItem {
   category: string;
   subcategory?: string;
   unitPrice: number;
+  trayPrice?: number;
+  perPersonPrice?: number;
+  trayServes?: number;
   minQuantity?: number;
   description?: string;
   servesGuests?: number;
   isVegetarian?: boolean;
   isHalal?: boolean;
+  isVegan?: boolean;
+  isGlutenFree?: boolean;
+  dietary?: string[];
+  available?: boolean;
 }
 
 export interface EnterpriseCustomer {

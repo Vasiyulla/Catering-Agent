@@ -1,0 +1,591 @@
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 20, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalCard {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 1140px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(212, 175, 55, 0.2);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  background: linear-gradient(135deg, #0d3b2e 0%, #06231b 100%);
+  color: #ffffff;
+  border-bottom: 2px solid #d4af37;
+}
+
+.headerTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.superTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #f1d77a;
+}
+
+.mainTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.closeBtn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.modalBody {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  flex: 1;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+/* Left Pane: Tray Configurator Controls */
+.configuratorPane {
+  padding: 24px 28px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.controlsBar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.controlField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.controlField label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.controlField input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  outline: none;
+}
+
+.controlField input:focus {
+  border-color: #0d3b2e;
+  box-shadow: 0 0 0 3px rgba(13, 59, 46, 0.1);
+}
+
+.categoryNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.catBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.catBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.catBtnActive {
+  background: #0d3b2e;
+  color: #ffffff;
+  border-color: #0d3b2e;
+  box-shadow: 0 2px 6px rgba(13, 59, 46, 0.2);
+}
+
+.dishesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.dishCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.2s;
+}
+
+.dishCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.dishCardSelected {
+  border-color: #0d3b2e;
+  background: #f0fdf4;
+}
+
+.dishTop {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dishName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.dishTags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tagHalal {
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #a7f3d0;
+}
+
+.tagVeg {
+  background: #f0fdf4;
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #bbf7d0;
+}
+
+.dishDesc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dishBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.priceCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.pricePerTray {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0d3b2e;
+}
+
+.priceServes {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.stepperBtn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.stepperBtn:hover {
+  background: #e2e8f0;
+}
+
+.stepperCount {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Right Pane: Live Summary & Fancy Card Preview */
+.summaryPane {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.summaryHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summaryHeader h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.tabSwitch {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.tabSwitchBtn {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tabSwitchActive {
+  background: #ffffff;
+  color: #0d3b2e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Fancy Visual Royal Card */
+.royalCardContainer {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.royalMenuCard {
+  background: radial-gradient(circle at top, #0f3d30 0%, #061c16 100%);
+  color: #ffffff;
+  border: 2px solid #d4af37;
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.royalCardCrest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+  padding-bottom: 14px;
+}
+
+.crestIcon {
+  color: #f1d77a;
+}
+
+.crestTitle {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #f1d77a;
+  text-transform: uppercase;
+}
+
+.crestSubtitle {
+  font-size: 10px;
+  color: #e2e8f0;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.royalHostInfo {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.hostField {
+  display: flex;
+  flex-direction: column;
+}
+
+.hostField strong {
+  color: #f1d77a;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.royalManifestList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.courseCategory {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.courseCategoryTitle {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #f1d77a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.courseItemLine {
+  display: flex;
+  justify-content: space-between;
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+.royalCardFooter {
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.royalPriceBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.totalLabel {
+  font-size: 9.5px;
+  color: #f1d77a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.totalVal {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.depositTag {
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
+.royalSealBadge {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid #d4af37;
+  color: #f1d77a;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+/* Actions Bar */
+.actionsBar {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btnGroup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.copyBtn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copyBtn:hover {
+  background: #e2e8f0;
+}
+
+.whatsappSendBtn {
+  background: #25d366;
+  border: none;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
+  transition: all 0.2s;
+}
+
+.whatsappSendBtn:hover {
+  background: #1ebc57;
+  transform: translateY(-1px);
+}
+
+.bookOrderBtn {
+  background: linear-gradient(135deg, #0d3b2e 0%, #06231b 100%);
+  color: #ffffff;
+  border: 1px solid #d4af37;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bookOrderBtn:hover {
+  background: linear-gradient(135deg, #124e3d 0%, #093328 100%);
+  box-shadow: 0 4px 16px rgba(13, 59, 46, 0.25);
+}
+
+.toastPill {
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-align: center;
+  animation: fadeIn 0.2s;
+}

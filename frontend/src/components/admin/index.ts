@@ -8,3 +8,4 @@ export { ConversationalDrawer } from './ConversationalDrawer.tsx';
 export { EscalationsView } from './EscalationsView.tsx';
 export { MenuCatalogView } from './MenuCatalogView.tsx';
 export { LogisticsView } from './LogisticsView.tsx';
+export { TrayConfiguratorModal } from './TrayConfiguratorModal.tsx';

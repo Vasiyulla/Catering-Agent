@@ -202,6 +202,41 @@
   flex-shrink: 0;
 }
 
+.configuratorBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, #0c2b22 0%, #174235 100%);
+  color: #f7e7ce;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(12, 43, 34, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.configuratorBtn:hover {
+  background: linear-gradient(135deg, #174235 0%, #205c4a 100%);
+  border-color: #d4af37;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+}
+
+.configIcon {
+  color: #d4af37;
+}
+
+.configBtnText {
+  white-space: nowrap;
+}
+
 .clockBadge {
   display: flex;
   align-items: center;

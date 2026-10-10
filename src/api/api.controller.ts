@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Logger, Sse, MessageEvent, Optional } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Query, Logger, Sse, MessageEvent, Optional } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { MenuService } from '../menu/menu.service.js';
+import { MenuService, MenuItem, CateringPackage } from '../menu/menu.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { BillingEngineService } from '../agent/billing/billing-engine.service.js';
 import { HostProtectionService } from '../agent/protection/host-protection.service.js';
@@ -40,6 +40,125 @@ export class ApiController {
     return {
       packages: this.menuService.getPackages(),
       items: this.menuService.getMenuItems(),
+    };
+  }
+
+  /**
+   * POST /api/menu/items
+   * Admin: Adds a new menu dish to catalog
+   */
+  @Post('menu/items')
+  createMenuItem(@Body() body: Omit<MenuItem, 'id'>) {
+    const item = this.menuService.addMenuItem(body);
+    return { success: true, item };
+  }
+
+  /**
+   * PUT /api/menu/items/:id
+   * Admin: Updates pricing, availability or details of an existing menu dish
+   */
+  @Put('menu/items/:id')
+  updateMenuItem(@Param('id') id: string, @Body() body: Partial<MenuItem>) {
+    const updated = this.menuService.updateMenuItem(id, body);
+    if (!updated) {
+      return { success: false, error: 'Item not found' };
+    }
+    return { success: true, item: updated };
+  }
+
+  /**
+   * DELETE /api/menu/items/:id
+   * Admin: Deletes/archives a menu dish
+   */
+  @Delete('menu/items/:id')
+  deleteMenuItem(@Param('id') id: string) {
+    const success = this.menuService.deleteMenuItem(id);
+    return { success, id };
+  }
+
+  /**
+   * PUT /api/menu/packages/:id
+   * Admin: Updates feast package rates and inclusions
+   */
+  @Put('menu/packages/:id')
+  updatePackage(@Param('id') id: string, @Body() body: Partial<CateringPackage>) {
+    const updated = this.menuService.updatePackage(id, body);
+    if (!updated) {
+      return { success: false, error: 'Package not found' };
+    }
+    return { success: true, package: updated };
+  }
+
+  /**
+   * POST /api/menu/generate-card
+   * Generates formatted royal visual menu card payload and WhatsApp-formatted text
+   */
+  @Post('menu/generate-card')
+  generateMenuCard(
+    @Body()
+    body: {
+      hostName?: string;
+      guestCount?: number;
+      eventDate?: string;
+      orderMode?: 'FEAST_PACKAGE' | 'A_LA_CARTE_TRAYS';
+      packageId?: string;
+      selectedItems?: Array<{ id: string; name?: string; category?: string; quantity: number }>;
+      totalAmount?: number;
+      dietaryNote?: string;
+    },
+  ) {
+    const host = body.hostName || 'Valued Host';
+    const guests = body.guestCount || 40;
+    const date = body.eventDate || 'Upcoming Celebration';
+    const total = body.totalAmount || 0;
+    const deposit = (total * 0.5).toFixed(2);
+
+    const itemsByCategory: Record<string, string[]> = {};
+    if (body.selectedItems && body.selectedItems.length > 0) {
+      body.selectedItems.forEach((item) => {
+        const cat = item.category || 'Curated Selections';
+        if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
+        itemsByCategory[cat].push(`${item.name || item.id} (${item.quantity}x Tray)`);
+      });
+    }
+
+    let whatsappText = `👑 *DIL SE CULINARY OPERATIONS • ROYAL BANQUET SPECIFICATION* 👑\n`;
+    whatsappText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    whatsappText += `📋 *HOST:* ${host}\n`;
+    whatsappText += `👥 *COVERS:* ${guests} Guests | 📅 *DATE:* ${date}\n`;
+    whatsappText += `🏷️ *FORMAT:* ${body.orderMode === 'FEAST_PACKAGE' ? 'Royal Buffet Feast Package' : 'Bespoke Bulk Party Trays'}\n`;
+    if (body.dietaryNote) {
+      whatsappText += `🛡️ *DIETARY INTEGRITY:* ${body.dietaryNote}\n`;
+    }
+    whatsappText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    whatsappText += `✨ *CURATED CATERING MANIFEST:*\n`;
+    Object.entries(itemsByCategory).forEach(([category, dishes]) => {
+      whatsappText += `🔸 *${category.toUpperCase()}*\n`;
+      dishes.forEach((d) => {
+        whatsappText += `   • ${d}\n`;
+      });
+      whatsappText += `\n`;
+    });
+
+    whatsappText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    whatsappText += `💰 *TOTAL QUOTE:* £${total.toFixed(2)} (Buffet Chafing Warmers Included)\n`;
+    whatsappText += `🔒 *50% DEPOSIT TO SECURE:* £${deposit}\n`;
+    whatsappText += `✨ *All meats 100% British Halal Certified. Dedicated Pure-Veg utensils applied.*\n`;
+    whatsappText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    whatsappText += `*Dil Se London Concierge:* Reply *CONFIRM* to lock this into kitchen prep schedule.`;
+
+    return {
+      success: true,
+      cardData: {
+        hostName: host,
+        guestCount: guests,
+        eventDate: date,
+        totalAmount: total,
+        depositAmount: deposit,
+        itemsByCategory,
+        whatsappText,
+      },
     };
   }
 
